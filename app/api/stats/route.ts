@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCacheStats, resetCacheStats } from '@/lib/hsApi'
+import { getKeyPoolStatus } from '@/lib/agents/shared'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -7,8 +8,8 @@ export async function GET(req: Request) {
 
   if (reset === '1') {
     resetCacheStats()
-    return NextResponse.json({ message: 'Cache stats reset', stats: getCacheStats() })
+    return NextResponse.json({ message: 'Cache stats reset', stats: getCacheStats(), keys: getKeyPoolStatus() })
   }
 
-  return NextResponse.json({ stats: getCacheStats() })
+  return NextResponse.json({ stats: getCacheStats(), keys: getKeyPoolStatus() })
 }

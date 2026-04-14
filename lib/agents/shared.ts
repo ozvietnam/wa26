@@ -1,9 +1,44 @@
 /**
  * Shared utilities for all agents — Gemini-only (WA26)
+ * Supports key rotation: GEMINI_API_KEY=key1,key2,key3
  */
 
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim()
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+
+// === Key Rotation ===
+// Env: GEMINI_API_KEY=key1,key2,key3 (comma-separated)
+const ALL_KEYS = (process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean)
+let keyIndex = 0
+
+// Track failed keys with cooldown (60s)
+const failedKeys = new Map<number, number>()
+const KEY_COOLDOWN = 60_000
+
+function getNextKey(): string {
+  if (ALL_KEYS.length === 0) throw new Error('GEMINI_API_KEY not configured')
+  if (ALL_KEYS.length === 1) return ALL_KEYS[0]
+
+  const now = Date.now()
+  // Try up to ALL_KEYS.length times to find a working key
+  for (let i = 0; i < ALL_KEYS.length; i++) {
+    const idx = (keyIndex + i) % ALL_KEYS.length
+    const failedAt = failedKeys.get(idx)
+    if (!failedAt || now - failedAt > KEY_COOLDOWN) {
+      keyIndex = (idx + 1) % ALL_KEYS.length
+      return ALL_KEYS[idx]
+    }
+  }
+  // All keys on cooldown — try the oldest failed one
+  keyIndex = (keyIndex + 1) % ALL_KEYS.length
+  failedKeys.delete(keyIndex)
+  return ALL_KEYS[keyIndex]
+}
+
+function markKeyFailed(key: string) {
+  const idx = ALL_KEYS.indexOf(key)
+  if (idx >= 0) failedKeys.set(idx, Date.now())
+}
 
 export interface LLMOptions {
   file?: { mimeType: string; data: string; name?: string }
@@ -14,29 +49,42 @@ export interface LLMOptions {
 }
 
 /**
- * Call Gemini API
+ * Call Gemini API with key rotation
+ * On 429/rate limit → rotate to next key and retry
  */
 export async function callLLM(prompt: string, _apiKey?: string, options: LLMOptions = {}): Promise<string> {
   const {
     file,
     temperature = 0.2,
     maxTokens = 8192,
-    retries = 1,
+    retries = 2,
   } = options
 
-  const apiKey = process.env.GEMINI_API_KEY || _apiKey
-  if (!apiKey) throw new Error('GEMINI_API_KEY not configured')
-
+  const maxAttempts = Math.max(retries + 1, ALL_KEYS.length)
   let lastError: Error | null = null
-  for (let attempt = 0; attempt <= retries; attempt++) {
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const apiKey = _apiKey || getNextKey()
     try {
-      return await callGemini(prompt, apiKey, { file, temperature, maxTokens })
+      const result = await callGemini(prompt, apiKey, { file, temperature, maxTokens })
+      return result
     } catch (err) {
       lastError = err as Error
-      if (attempt < retries && /429|5\d\d|rate|limit|overloaded/i.test(lastError.message)) {
+      const isRateLimit = /429|RESOURCE_EXHAUSTED|rate|limit|quota/i.test(lastError.message)
+      const isServerError = /5\d\d|overloaded/i.test(lastError.message)
+
+      if (isRateLimit) {
+        console.warn(`[Gemini] Key ${apiKey.slice(-6)} rate limited — rotating`)
+        markKeyFailed(apiKey)
+        // No delay for key rotation, try next key immediately
+        continue
+      }
+
+      if (isServerError && attempt < maxAttempts - 1) {
         await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
         continue
       }
+
       throw err
     }
   }
@@ -91,7 +139,7 @@ async function callGemini(
   const result = responseText.trim()
   const usage = data.usageMetadata || {}
 
-  console.log(`[Gemini] finish=${finishReason} output=${result.length}chars thinking=${usage.thoughtsTokenCount || 0} total=${usage.totalTokenCount || 0}`)
+  console.log(`[Gemini] key=...${apiKey.slice(-6)} finish=${finishReason} output=${result.length}chars thinking=${usage.thoughtsTokenCount || 0} total=${usage.totalTokenCount || 0}`)
 
   if (finishReason === 'MAX_TOKENS' && result.length > 0) {
     console.warn(`[Gemini] TRUNCATED at ${result.length} chars`)
@@ -116,4 +164,22 @@ export function formatHistory(history: Array<{ role: string; content: string }> 
   return '\nLỊCH SỬ HỘI THOẠI:\n' + history.slice(-maxTurns).map(h =>
     `${h.role === 'user' ? 'Người dùng' : 'Trợ lý'}: ${h.content.substring(0, 500)}`
   ).join('\n') + '\n'
+}
+
+/**
+ * Get key pool status (for /api/stats)
+ */
+export function getKeyPoolStatus() {
+  const now = Date.now()
+  return {
+    totalKeys: ALL_KEYS.length,
+    activeKeys: ALL_KEYS.filter((_, i) => {
+      const failedAt = failedKeys.get(i)
+      return !failedAt || now - failedAt > KEY_COOLDOWN
+    }).length,
+    cooldownKeys: ALL_KEYS.filter((_, i) => {
+      const failedAt = failedKeys.get(i)
+      return failedAt && now - failedAt <= KEY_COOLDOWN
+    }).length,
+  }
 }
