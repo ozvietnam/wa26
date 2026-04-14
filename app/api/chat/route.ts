@@ -47,15 +47,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tin nhắn quá dài (tối đa 10,000 ký tự)' }, { status: 400 })
     }
 
-    const apiKey = process.env.GEMINI_API_KEY
     const startTime = Date.now()
 
-    // Classify intent
-    const routing = await classifyIntent(message, apiKey, history)
+    // Classify intent (callLLM handles key rotation internally)
+    const routing = await classifyIntent(message, undefined, history)
 
     // Route to agent
     const handler = AGENTS[routing.intent] || AGENTS.customs
-    const result = await handler({ message, history, file, apiKey })
+    const result = await handler({ message, history, file })
 
     const duration = Date.now() - startTime
 
