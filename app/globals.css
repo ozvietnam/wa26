@@ -4,12 +4,184 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary text-white px-6 py-2.5 rounded-lg hover:bg-blue-800 transition-colors font-medium;
+    @apply bg-blue-700 text-white px-6 py-2.5 rounded-lg hover:bg-blue-800 transition-colors font-medium;
   }
   .btn-secondary {
-    @apply bg-secondary text-white px-6 py-2.5 rounded-lg hover:bg-sky-600 transition-colors font-medium;
+    @apply bg-sky-500 text-white px-6 py-2.5 rounded-lg hover:bg-sky-600 transition-colors font-medium;
   }
   .btn-outline {
-    @apply border-2 border-primary text-primary px-6 py-2.5 rounded-lg hover:bg-primary hover:text-white transition-colors font-medium;
+    @apply border-2 border-blue-700 text-blue-700 px-6 py-2.5 rounded-lg hover:bg-blue-700 hover:text-white transition-colors font-medium;
   }
+}
+
+/* === Chat Formatting === */
+.chat-content .verdict-box {
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.06));
+  border-left: 3px solid #3b82f6;
+  padding: 10px 14px;
+  border-radius: 0 10px 10px 0;
+  margin: 6px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.chat-content .hs-code-primary {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 15px;
+  color: #2563eb;
+  background: rgba(59,130,246,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.chat-content .hs-code {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  color: #3b82f6;
+  background: rgba(59,130,246,0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.chat-content .tax-line {
+  background: rgba(16,185,129,0.06);
+  border: 1px solid rgba(16,185,129,0.15);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.chat-content .tax-rate {
+  font-weight: 700;
+  color: #059669;
+  font-family: ui-monospace, monospace;
+}
+
+.chat-content .citation {
+  color: #6b7280;
+  font-size: 13px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  margin: 4px 0;
+}
+
+.chat-content .discovery-alert {
+  background: rgba(245,158,11,0.08);
+  border-left: 3px solid #f59e0b;
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+  margin: 6px 0;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.chat-content .section-header {
+  font-weight: 600;
+  color: #374151;
+  margin: 10px 0 4px;
+  font-size: 14px;
+}
+
+.chat-content .hs-option {
+  background: rgba(59,130,246,0.04);
+  border: 1px solid rgba(59,130,246,0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.chat-content .followup-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
+
+.chat-content .followup-item {
+  padding: 6px 10px;
+  margin: 2px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #3b82f6;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.chat-content .followup-item:hover {
+  background: rgba(59,130,246,0.08);
+}
+
+.chat-content .expert-list {
+  padding-left: 16px;
+  margin: 4px 0;
+}
+
+.chat-content .expert-list li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4b5563;
+  margin: 2px 0;
+}
+
+.chat-content .data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.chat-content .table-cell {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.chat-content .data-table tr:first-child .table-cell {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.chat-content .spacer {
+  height: 8px;
+}
+
+.chat-content code {
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.chat-content strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.chat-content em {
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Streaming cursor */
+.chat-content.streaming::after {
+  content: '▊';
+  animation: blink 0.7s infinite;
+  color: #3b82f6;
+  font-weight: 300;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease;
 }
