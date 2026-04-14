@@ -1,72 +1,105 @@
 /**
- * Shared utilities for all agents — Gemini (WA26)
+ * WA26 Multi-Provider LLM Engine
  *
- * KEY STRATEGY (paid keys — optimize cost):
- * ┌─────────────┬──────────────────┬────────────────────────────────────┐
- * │ Tier        │ Model            │ Used for                           │
- * ├─────────────┼──────────────────┼────────────────────────────────────┤
- * │ FAST        │ gemini-2.5-flash │ Router, keyword extraction, care   │
- * │ HEAVY       │ gemini-2.5-flash │ Verdict, respond, regulation       │
- * └─────────────┴──────────────────┴────────────────────────────────────┘
+ * ┌─────────────┬───────────────────────┬──────────────────────────┐
+ * │ Tier        │ Primary               │ Fallback                 │
+ * ├─────────────┼───────────────────────┼──────────────────────────┤
+ * │ FAST        │ Groq llama-3.1-8b     │ Gemini 2.5 Flash         │
+ * │ (router,    │ $0.05/M, ~100ms       │ (existing keys)          │
+ * │  care)      │ 3 keys round-robin    │                          │
+ * ├─────────────┼───────────────────────┼──────────────────────────┤
+ * │ HEAVY       │ Gemini 2.5 Flash      │ OpenRouter Gemini        │
+ * │ (verdict,   │ $0.15/M, VN tốt      │ ($30 credit, 4 keys)     │
+ * │  respond)   │ 4 keys round-robin    │                          │
+ * └─────────────┴───────────────────────┴──────────────────────────┘
  *
- * Key rotation: GEMINI_API_KEY=key1,key2,key3 (comma-separated)
- * On 429 → rotate to next key immediately, 120s cooldown per key
+ * Env vars:
+ *   GEMINI_API_KEY=key1,key2,...
+ *   GROQ_API_KEY=gsk_xxx,gsk_yyy,...
+ *   OPENROUTER_API_KEY=sk-or-v1-xxx,sk-or-v1-yyy,...
  */
 
-// === Model Config ===
-const MODEL_FAST = (process.env.GEMINI_MODEL_FAST || 'gemini-2.5-flash').trim()
-const MODEL_HEAVY = (process.env.GEMINI_MODEL_HEAVY || 'gemini-2.5-flash').trim()
+// === Provider Config ===
+interface ProviderConfig {
+  name: string
+  keys: string[]
+  keyIndex: number
+  failedKeys: Map<number, number>
+  cooldown: number
+}
 
-const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+const providers: Record<string, ProviderConfig> = {
+  gemini: {
+    name: 'gemini',
+    keys: (process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean),
+    keyIndex: 0,
+    failedKeys: new Map(),
+    cooldown: 120_000,
+  },
+  groq: {
+    name: 'groq',
+    keys: (process.env.GROQ_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean),
+    keyIndex: 0,
+    failedKeys: new Map(),
+    cooldown: 60_000,
+  },
+  openrouter: {
+    name: 'openrouter',
+    keys: (process.env.OPENROUTER_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean),
+    keyIndex: 0,
+    failedKeys: new Map(),
+    cooldown: 60_000,
+  },
+}
 
-// === Key Pool ===
-const ALL_KEYS = (process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean)
-let keyIndex = 0
+// === Tier → Provider Chain ===
+const TIER_CHAIN = {
+  fast: [
+    { provider: 'groq', model: 'llama-3.1-8b-instant', thinking: 0, maxTokens: 1024 },
+    { provider: 'gemini', model: 'gemini-2.5-flash', thinking: 0, maxTokens: 2048 },
+  ],
+  heavy: [
+    { provider: 'gemini', model: 'gemini-2.5-flash', thinking: 2048, maxTokens: 8192 },
+    { provider: 'openrouter', model: 'google/gemini-2.0-flash-001', thinking: 0, maxTokens: 8192 },
+    { provider: 'groq', model: 'llama-3.3-70b-versatile', thinking: 0, maxTokens: 8192 },
+  ],
+}
 
-const failedKeys = new Map<number, number>()
-const KEY_COOLDOWN = 120_000 // 2 min for paid keys
-
-// Token usage tracking per key
-const keyUsage = new Map<number, { tokens: number; calls: number; lastReset: number }>()
-
-function getNextKey(): string {
-  if (ALL_KEYS.length === 0) throw new Error('GEMINI_API_KEY not configured')
-  if (ALL_KEYS.length === 1) return ALL_KEYS[0]
-
+// === Key Rotation ===
+function getNextKey(p: ProviderConfig): string | null {
+  if (p.keys.length === 0) return null
   const now = Date.now()
-  for (let i = 0; i < ALL_KEYS.length; i++) {
-    const idx = (keyIndex + i) % ALL_KEYS.length
-    const failedAt = failedKeys.get(idx)
-    if (!failedAt || now - failedAt > KEY_COOLDOWN) {
-      keyIndex = (idx + 1) % ALL_KEYS.length
-      return ALL_KEYS[idx]
+  for (let i = 0; i < p.keys.length; i++) {
+    const idx = (p.keyIndex + i) % p.keys.length
+    const failedAt = p.failedKeys.get(idx)
+    if (!failedAt || now - failedAt > p.cooldown) {
+      p.keyIndex = (idx + 1) % p.keys.length
+      return p.keys[idx]
     }
   }
   // All on cooldown — use least-recently-failed
   let oldestIdx = 0, oldestTime = Infinity
-  failedKeys.forEach((time, idx) => { if (time < oldestTime) { oldestTime = time; oldestIdx = idx } })
-  failedKeys.delete(oldestIdx)
-  keyIndex = (oldestIdx + 1) % ALL_KEYS.length
-  return ALL_KEYS[oldestIdx]
+  p.failedKeys.forEach((time, idx) => { if (time < oldestTime) { oldestTime = time; oldestIdx = idx } })
+  p.failedKeys.delete(oldestIdx)
+  p.keyIndex = (oldestIdx + 1) % p.keys.length
+  return p.keys[oldestIdx]
 }
 
-function markKeyFailed(key: string) {
-  const idx = ALL_KEYS.indexOf(key)
-  if (idx >= 0) failedKeys.set(idx, Date.now())
+function markFailed(p: ProviderConfig, key: string) {
+  const idx = p.keys.indexOf(key)
+  if (idx >= 0) p.failedKeys.set(idx, Date.now())
 }
 
-function trackKeyUsage(key: string, tokens: number) {
-  const idx = ALL_KEYS.indexOf(key)
-  if (idx < 0) return
+// === Token Tracking ===
+const usage = new Map<string, { calls: number; tokens: number; lastReset: number }>()
+
+function trackUsage(provider: string, key: string, tokens: number) {
+  const id = `${provider}:${key.slice(-6)}`
   const now = Date.now()
-  const usage = keyUsage.get(idx) || { tokens: 0, calls: 0, lastReset: now }
-  // Reset daily
-  if (now - usage.lastReset > 86400000) {
-    usage.tokens = 0; usage.calls = 0; usage.lastReset = now
-  }
-  usage.tokens += tokens
-  usage.calls += 1
-  keyUsage.set(idx, usage)
+  const u = usage.get(id) || { calls: 0, tokens: 0, lastReset: now }
+  if (now - u.lastReset > 86400000) { u.calls = 0; u.tokens = 0; u.lastReset = now }
+  u.calls++; u.tokens += tokens
+  usage.set(id, u)
 }
 
 // === LLM Interface ===
@@ -74,134 +107,139 @@ export interface LLMOptions {
   file?: { mimeType: string; data: string; name?: string }
   temperature?: number
   maxTokens?: number
-  tier?: 'fast' | 'heavy' // Controls model selection
-  thinkingBudget?: number  // Override default (fast=0, heavy=2048)
+  tier?: 'fast' | 'heavy'
+  thinkingBudget?: number
   retries?: number
 }
 
 /**
- * Call Gemini API with key rotation + tiered model selection
- *
- * tier='fast'  → gemini-2.5-flash (router, keywords, care)
- *   Low tokens, high speed, cheap
- *
- * tier='heavy' → gemini-2.5-flash (verdict, respond, regulation)
- *   Higher tokens, thinking enabled
+ * Call LLM with automatic provider fallback chain
  */
 export async function callLLM(prompt: string, _apiKey?: string, options: LLMOptions = {}): Promise<string> {
-  const {
-    file,
-    temperature = 0.2,
-    maxTokens = 8192,
-    tier = 'heavy',
-    retries = 2,
-  } = options
-
-  const model = tier === 'fast' ? MODEL_FAST : MODEL_HEAVY
-  const thinkingBudget = options.thinkingBudget ?? (tier === 'fast' ? 0 : 2048)
-  const effectiveMaxTokens = tier === 'fast' ? Math.min(maxTokens, 2048) : maxTokens
-
-  const maxAttempts = Math.max(retries + 1, ALL_KEYS.length)
+  const { tier = 'heavy', temperature = 0.2, file, retries = 1 } = options
+  const chain = TIER_CHAIN[tier]
   let lastError: Error | null = null
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const apiKey = _apiKey || getNextKey()
-    try {
-      const result = await callGemini(prompt, apiKey, {
-        file, temperature, maxTokens: effectiveMaxTokens, model, thinkingBudget,
-      })
-      return result
-    } catch (err) {
-      lastError = err as Error
-      const msg = lastError.message
-      const isRateLimit = /429|RESOURCE_EXHAUSTED|rate|limit|quota/i.test(msg)
-      const isServerError = /5\d\d|overloaded/i.test(msg)
-      const isLeaked = /leaked|403/i.test(msg)
+  for (const step of chain) {
+    const p = providers[step.provider]
+    if (!p || p.keys.length === 0) continue
 
-      if (isRateLimit || isLeaked) {
-        console.warn(`[Gemini] Key ...${apiKey.slice(-6)} ${isLeaked ? 'LEAKED' : 'rate limited'} — rotating`)
-        markKeyFailed(apiKey)
-        continue
+    const maxTokens = options.maxTokens ? Math.min(options.maxTokens, step.maxTokens) : step.maxTokens
+    const thinking = options.thinkingBudget ?? step.thinking
+
+    // Try each key in this provider
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const key = _apiKey || getNextKey(p)
+      if (!key) break
+
+      try {
+        let result: string
+        if (step.provider === 'gemini') {
+          result = await callGemini(prompt, key, { file, temperature, maxTokens, model: step.model, thinkingBudget: thinking })
+        } else {
+          result = await callOpenAICompat(prompt, key, {
+            temperature, maxTokens, model: step.model,
+            apiUrl: step.provider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://openrouter.ai/api/v1',
+            providerName: step.provider,
+          })
+        }
+
+        trackUsage(step.provider, key, result.length) // approximate
+        return result
+      } catch (err) {
+        lastError = err as Error
+        const msg = lastError.message
+        const isRetryable = /429|5\d\d|rate|limit|quota|leaked|RESOURCE_EXHAUSTED/i.test(msg)
+
+        if (isRetryable) {
+          console.warn(`[LLM] ${step.provider} key ...${key.slice(-6)} failed: ${msg.substring(0, 60)} — rotating`)
+          markFailed(p, key)
+          continue
+        }
+        // Non-retryable error — skip to next provider
+        console.error(`[LLM] ${step.provider} non-retryable: ${msg.substring(0, 80)}`)
+        break
       }
-      if (isServerError && attempt < maxAttempts - 1) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
-        continue
-      }
-      throw err
     }
+    console.warn(`[LLM] ${step.provider} exhausted — falling back`)
   }
-  throw lastError
+
+  throw lastError || new Error('All LLM providers failed')
 }
 
-// === Core Gemini Call ===
+// === Gemini Direct Call ===
 async function callGemini(
-  prompt: string,
-  apiKey: string,
-  options: {
-    file?: LLMOptions['file']; temperature?: number; maxTokens?: number
-    model?: string; thinkingBudget?: number
-  } = {}
+  prompt: string, apiKey: string,
+  opts: { file?: LLMOptions['file']; temperature?: number; maxTokens?: number; model?: string; thinkingBudget?: number }
 ): Promise<string> {
-  const { file, temperature = 0.2, maxTokens = 8192, model = MODEL_HEAVY, thinkingBudget = 2048 } = options
+  const { file, temperature = 0.2, maxTokens = 8192, model = 'gemini-2.5-flash', thinkingBudget = 0 } = opts
   const parts: Array<{ text: string } | { inline_data: { mime_type: string; data: string } }> = [{ text: prompt }]
+  if (file?.data && file?.mimeType) parts.push({ inline_data: { mime_type: file.mimeType, data: file.data } })
 
-  if (file?.data && file?.mimeType) {
-    parts.push({ inline_data: { mime_type: file.mimeType, data: file.data } })
-  }
+  const genConfig: Record<string, unknown> = { temperature, maxOutputTokens: maxTokens }
+  if (thinkingBudget > 0) genConfig.thinkingConfig = { thinkingBudget }
 
-  const genConfig: Record<string, unknown> = {
-    temperature,
-    maxOutputTokens: maxTokens,
-  }
-  // Only add thinking for heavy tier
-  if (thinkingBudget > 0) {
-    genConfig.thinkingConfig = { thinkingBudget }
-  }
-
-  const url = `${API_BASE}/${model}:generateContent?key=${apiKey}`
-  const res = await fetch(url, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts }], generationConfig: genConfig }),
   })
 
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Gemini API error: ${res.status} - ${err}`)
-  }
+  if (!res.ok) throw new Error(`Gemini ${res.status} - ${(await res.text()).substring(0, 200)}`)
 
   const data = await res.json()
-  const candidate = data.candidates?.[0] || {}
-  const responseParts = candidate.content?.parts || []
-  const finishReason = candidate.finishReason
-
-  let responseText = ''
+  const responseParts = data.candidates?.[0]?.content?.parts || []
+  let text = ''
   for (const part of responseParts) {
-    if (part.thought !== true && part.text) {
-      responseText += part.text
-    }
+    if (part.thought !== true && part.text) text += part.text
   }
-  if (!responseText) {
-    responseText = responseParts.map((p: { text?: string }) => p.text || '').join('')
-  }
+  if (!text) text = responseParts.map((p: { text?: string }) => p.text || '').join('')
 
-  const result = responseText.trim()
-  const usage = data.usageMetadata || {}
-  const totalTokens = usage.totalTokenCount || 0
-
-  // Track usage
-  trackKeyUsage(apiKey, totalTokens)
-
-  console.log(`[Gemini] key=...${apiKey.slice(-6)} model=${model} tier=${thinkingBudget > 0 ? 'heavy' : 'fast'} tokens=${totalTokens} output=${result.length}chars`)
-
-  if (finishReason === 'MAX_TOKENS') {
-    console.warn(`[Gemini] TRUNCATED at ${result.length} chars`)
-  }
-
-  return result
+  const total = data.usageMetadata?.totalTokenCount || 0
+  console.log(`[Gemini] key=...${apiKey.slice(-6)} model=${model} tokens=${total}`)
+  return text.trim()
 }
 
-// === Utility Functions ===
+// === OpenAI-Compatible Call (Groq, OpenRouter) ===
+async function callOpenAICompat(
+  prompt: string, apiKey: string,
+  opts: { temperature?: number; maxTokens?: number; model: string; apiUrl: string; providerName: string }
+): Promise<string> {
+  const { temperature = 0.2, maxTokens = 4096, model, apiUrl, providerName } = opts
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  }
+  // OpenRouter requires site info
+  if (providerName === 'openrouter') {
+    headers['HTTP-Referer'] = 'https://wa26.vercel.app'
+    headers['X-Title'] = 'WA26 HS Code Chatbot'
+  }
+
+  const res = await fetch(`${apiUrl}/chat/completions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  })
+
+  if (!res.ok) throw new Error(`${providerName} ${res.status} - ${(await res.text()).substring(0, 200)}`)
+
+  const data = await res.json()
+  const raw = data.choices?.[0]?.message?.content || ''
+  const total = data.usage?.total_tokens || 0
+  console.log(`[${providerName}] key=...${apiKey.slice(-6)} model=${model} tokens=${total}`)
+
+  // Strip thinking tags (Qwen3, DeepSeek)
+  return raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+}
+
+// === Utilities ===
 export function parseGeminiJSON<T = unknown>(raw: string): T {
   const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
   return JSON.parse(cleaned) as T
@@ -216,21 +254,19 @@ export function formatHistory(history: Array<{ role: string; content: string }> 
 
 export function getKeyPoolStatus() {
   const now = Date.now()
-  return {
-    totalKeys: ALL_KEYS.length,
-    activeKeys: ALL_KEYS.filter((_, i) => {
-      const failedAt = failedKeys.get(i)
-      return !failedAt || now - failedAt > KEY_COOLDOWN
-    }).length,
-    cooldownKeys: ALL_KEYS.filter((_, i) => {
-      const failedAt = failedKeys.get(i)
-      return failedAt && now - failedAt <= KEY_COOLDOWN
-    }).length,
-    model: { fast: MODEL_FAST, heavy: MODEL_HEAVY },
-    usage: Array.from(keyUsage.entries()).map(([idx, u]) => ({
-      key: `...${ALL_KEYS[idx]?.slice(-6) || '?'}`,
-      calls: u.calls,
-      tokens: u.tokens,
-    })),
+  const providerStatus = Object.entries(providers).map(([name, p]) => ({
+    provider: name,
+    totalKeys: p.keys.length,
+    activeKeys: p.keys.filter((_, i) => { const f = p.failedKeys.get(i); return !f || now - f > p.cooldown }).length,
+    cooldownKeys: p.keys.filter((_, i) => { const f = p.failedKeys.get(i); return f && now - f <= p.cooldown }).length,
+  }))
+
+  const tierInfo = {
+    fast: TIER_CHAIN.fast.map(s => `${s.provider}/${s.model}`),
+    heavy: TIER_CHAIN.heavy.map(s => `${s.provider}/${s.model}`),
   }
+
+  const usageInfo = Array.from(usage.entries()).map(([id, u]) => ({ id, calls: u.calls, tokens: u.tokens }))
+
+  return { providers: providerStatus, tiers: tierInfo, usage: usageInfo }
 }
