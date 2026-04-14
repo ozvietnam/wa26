@@ -126,16 +126,18 @@ export function transformChapterRecords(
     const fact = rec.fact_layer
     const desc = fact?.vn || code
 
+    // Clean dash prefixes: "- - - -" or "– – –" or mixed
+    const cleanDesc = (s: string) => s.replace(/^[\s–\-]+/, '').trim()
+
     // Insert heading row (4-digit) if not seen
     if (rec.heading && !seenHeadings.has(rec.heading)) {
       seenHeadings.add(rec.heading)
-      // Find a record with this heading for notes
       const headingNote = buildNote(rec)
       rows.push({
         type: 'heading',
         code: rec.heading,
-        desc: desc.replace(/^(–\s*)+/, '').slice(0, 120),
-        descEn: fact?.en,
+        desc: cleanDesc(desc),
+        descEn: fact?.en ? cleanDesc(fact.en) : undefined,
         note: headingNote,
       })
     }
@@ -143,13 +145,12 @@ export function transformChapterRecords(
     // Insert subheading row (6-digit) if not seen
     if (rec.subheading && !seenSubheadings.has(rec.subheading) && rec.subheading !== rec.heading) {
       seenSubheadings.add(rec.subheading)
-      // Only add if different from heading
       if (rec.subheading.length > 4) {
         rows.push({
           type: 'sub',
           v: 1,
           code: rec.subheading,
-          desc: '– ' + desc.replace(/^(–\s*)+/, '').slice(0, 100),
+          desc: '– ' + cleanDesc(desc),
         })
       }
     }

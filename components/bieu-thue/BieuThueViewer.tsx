@@ -55,17 +55,17 @@ function OverlayProvider({ children }: { children: ReactNode }) {
                 <div className="text-[13px] font-bold mt-0.5">{panel.title}</div>
               </div>
               <button onClick={() => setPanel(null)} className="border-none bg-white/20 text-white rounded px-3 py-1 cursor-pointer text-xs font-semibold">
-                Dong
+                Đóng ✕
               </button>
             </div>
             {panel.summary && (
               <div className="p-2.5 border-b shrink-0" style={{ background: '#f4f9f2', borderColor: '#d6e8d0' }}>
-                <div className="text-[9px] font-bold uppercase" style={{ color: C.green }}>TOM TAT</div>
+                <div className="text-[9px] font-bold uppercase" style={{ color: C.green }}>TÓM TẮT</div>
                 <p className="mt-1 text-[13px] leading-relaxed" style={{ color: C.ink }}>{panel.summary}</p>
               </div>
             )}
             <div className="flex-1 overflow-auto p-3" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="text-[9px] font-bold uppercase text-gray-400 mb-1.5">TOAN VAN</div>
+              <div className="text-[9px] font-bold uppercase text-gray-400 mb-1.5">TOÀN VĂN</div>
               {panel.full.map((l, i) => (
                 <p key={i} className="text-[13.5px] leading-[1.8]" style={{ margin: i ? '5px 0 0' : '0', paddingLeft: l.startsWith('  ') ? 14 : 0, whiteSpace: 'pre-wrap', color: C.ink }}>
                   {l}
@@ -82,17 +82,17 @@ function OverlayProvider({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-black/45" onClick={() => setModal(null)} />
           <div className="relative w-full max-w-[480px] max-h-[85vh] bg-white rounded-lg shadow-2xl flex flex-col animate-fade-up">
             <div className="p-3 text-white rounded-t-lg shrink-0" style={{ background: '#1a5276' }}>
-              <div className="text-[10px] font-mono" style={{ color: '#85c1e9' }}>SEN 2022 — GIAI THICH BO SUNG</div>
+              <div className="text-[10px] font-mono" style={{ color: '#85c1e9' }}>SEN 2022 — GIẢI THÍCH BỔ SUNG</div>
               <div className="text-[13px] font-bold mt-0.5">{modal.title}</div>
             </div>
             {modal.summary && (
               <div className="p-2.5 border-b shrink-0" style={{ background: '#eaf2f8', borderColor: '#d4e6f1' }}>
-                <div className="text-[9px] font-bold uppercase" style={{ color: '#1a5276' }}>TOM TAT</div>
+                <div className="text-[9px] font-bold uppercase" style={{ color: '#1a5276' }}>TÓM TẮT</div>
                 <p className="mt-1 text-[13px] leading-relaxed" style={{ color: C.ink }}>{modal.summary}</p>
               </div>
             )}
             <div className="flex-1 overflow-auto p-3" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="text-[9px] font-bold uppercase text-gray-400 mb-1.5">TOAN VAN</div>
+              <div className="text-[9px] font-bold uppercase text-gray-400 mb-1.5">TOÀN VĂN</div>
               {modal.full.map((l, i) => (
                 <p key={i} className="text-[13px] leading-[1.7]" style={{ margin: i ? '4px 0 0' : '0', paddingLeft: l.startsWith('  ') ? 14 : 0, whiteSpace: 'pre-wrap' }}>
                   {l}
@@ -100,7 +100,7 @@ function OverlayProvider({ children }: { children: ReactNode }) {
               ))}
             </div>
             <button onClick={() => setModal(null)} className="p-2.5 border-t border-gray-200 bg-gray-50 rounded-b-lg cursor-pointer text-[13px] font-bold" style={{ color: '#1a5276' }}>
-              Da doc — Dong
+              Đã đọc — Đóng
             </button>
           </div>
         </div>
@@ -297,25 +297,25 @@ function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: stri
 // ── Landing hero ──
 function LandingHero({ onSelectChapter, onFocusSearch }: { onSelectChapter: (ch: number) => void; onFocusSearch: () => void }) {
   const marqueeItems = [
-    { icon: '📊', old: 'Mo file Excel 200MB, cuon tim ma', now: 'Go ma HS, ket qua 1 giay' },
-    { icon: '📜', old: 'Mo file chu giai rieng, tra cuu thu cong', now: 'Nhan 📜 xem chu giai nguyen van ngay tai dong' },
-    { icon: '📘', old: 'Tim SEN 2022 trong tai lieu 800 trang', now: 'Nhan SEN — popup giai thich bo sung lien ma' },
-    { icon: '📋', old: 'Tim TB-TCHQ tren website Hai quan', now: '4,390 tien le phan loai gan san vao tung ma HS' },
-    { icon: '📱', old: 'File Excel khong doc duoc tren dien thoai', now: 'Giao dien toi uu cho mobile, tablet, desktop' },
-    { icon: '🔍', old: 'Khong biet ma HS, khong tim duoc', now: 'Tim theo ten hang hoa tieng Viet, ket qua thong minh' },
-    { icon: '⚠️', old: 'Khong biet hang co can kiem tra chuyen nganh', now: 'Canh bao KTCN tu dong — 7,365 ma, 9 bo nganh' },
-    { icon: '📈', old: 'So sanh thue FTA phai mo nhieu bang', now: '19 bieu thue uu dai tren 1 giao dien' },
+    { icon: '📊', old: 'Mở file Excel 200MB, cuộn tìm mã', now: 'Gõ mã HS, kết quả 1 giây' },
+    { icon: '📜', old: 'Mở file chú giải riêng, tra cứu thủ công', now: 'Nhấn 📜 xem chú giải nguyên văn ngay tại dòng' },
+    { icon: '📘', old: 'Tìm SEN 2022 trong tài liệu 800 trang', now: 'Nhấn SEN — popup giải thích bổ sung liền mã' },
+    { icon: '📋', old: 'Tìm TB-TCHQ trên website Hải quan', now: '4.390 tiền lệ phân loại gắn sẵn vào từng mã HS' },
+    { icon: '📱', old: 'File Excel không đọc được trên điện thoại', now: 'Giao diện tối ưu cho mobile, tablet, desktop' },
+    { icon: '🔍', old: 'Không biết mã HS, không tìm được', now: 'Tìm theo tên hàng hoá tiếng Việt, kết quả thông minh' },
+    { icon: '⚠️', old: 'Không biết hàng có cần kiểm tra chuyên ngành', now: 'Cảnh báo KTCN tự động — 7.365 mã, 9 bộ ngành' },
+    { icon: '📈', old: 'So sánh thuế FTA phải mở nhiều bảng', now: '19 biểu thuế ưu đãi trên 1 giao diện' },
   ]
 
   const popularChapters = [
-    { ch: 84, label: 'Ch.84 — May moc' },
-    { ch: 85, label: 'Ch.85 — Dien tu' },
+    { ch: 84, label: 'Ch.84 — Máy móc' },
+    { ch: 85, label: 'Ch.85 — Điện tử' },
     { ch: 39, label: 'Ch.39 — Plastic' },
-    { ch: 72, label: 'Ch.72 — Sat thep' },
-    { ch: 87, label: 'Ch.87 — Xe co' },
-    { ch: 73, label: 'Ch.73 — SP sat thep' },
-    { ch: 61, label: 'Ch.61 — May mac' },
-    { ch: 90, label: 'Ch.90 — Quang hoc' },
+    { ch: 72, label: 'Ch.72 — Sắt thép' },
+    { ch: 87, label: 'Ch.87 — Xe cộ' },
+    { ch: 73, label: 'Ch.73 — SP sắt thép' },
+    { ch: 61, label: 'Ch.61 — May mặc' },
+    { ch: 90, label: 'Ch.90 — Quang học' },
   ]
 
   return (
@@ -323,13 +323,13 @@ function LandingHero({ onSelectChapter, onFocusSearch }: { onSelectChapter: (ch:
       {/* Hero */}
       <div className="max-w-4xl mx-auto px-4 pt-8 pb-4 text-center">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-          {"Bieu thue XNK 2026"}
+          {"Biểu thuế XNK 2026"}
         </h1>
         <p className="text-gray-500 text-sm md:text-base mb-1">
-          {"11,871 ma HS • 19 bieu thue FTA • Chu giai • SEN 2022 • TB-TCHQ"}
+          {"11.871 mã HS • 19 biểu thuế FTA • Chú giải • SEN 2022 • TB-TCHQ"}
         </p>
         <p className="text-gray-400 text-xs mb-6">
-          {"ND 144/2024/ND-CP • TT 31/2022/TT-BTC • Co hieu luc 06/01/2026"}
+          {"NĐ 144/2024/NĐ-CP • TT 31/2022/TT-BTC • Có hiệu lực 06/01/2026"}
         </p>
 
         {/* CTA buttons */}
@@ -338,13 +338,13 @@ function LandingHero({ onSelectChapter, onFocusSearch }: { onSelectChapter: (ch:
             onClick={onFocusSearch}
             className="px-5 py-2.5 bg-green-700 text-white rounded-lg font-medium hover:bg-green-800 transition text-sm"
           >
-            {"🔍 Tim ma HS"}
+            {"🔍 Tìm mã HS"}
           </button>
           <button
             onClick={() => onSelectChapter(85)}
             className="px-5 py-2.5 border border-green-700 text-green-700 rounded-lg font-medium hover:bg-green-50 transition text-sm"
           >
-            {"📋 Duyet theo chuong"}
+            {"📋 Duyệt theo chương"}
           </button>
         </div>
       </div>
@@ -365,7 +365,7 @@ function LandingHero({ onSelectChapter, onFocusSearch }: { onSelectChapter: (ch:
 
       {/* Popular chapters quick access */}
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Chuong pho bien</h3>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Chương phổ biến</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {popularChapters.map(({ ch, label }) => (
             <button
@@ -393,7 +393,7 @@ function ChapterSelector({ selected, onSelect }: { selected: number | null; onSe
         className="flex items-center gap-1 px-2 py-1.5 border border-gray-300 rounded text-xs bg-white hover:bg-gray-50"
       >
         <span className="text-green-700 font-semibold">
-          {selected ? `Ch.${String(selected).padStart(2, '0')}` : 'Chon chuong'}
+          {selected ? `Ch.${String(selected).padStart(2, '0')}` : 'Chọn chương'}
         </span>
         <svg className={`w-3 h-3 transition ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -472,7 +472,7 @@ export function BieuThueViewer() {
       setSelectedChapter(ch)
       setView('table')
     } catch {
-      setError('Khong the tai du lieu chuong. Vui long thu lai.')
+      setError('Không thể tải dữ liệu chương. Vui lòng thử lại.')
       setData([])
     } finally {
       setLoading(false)
@@ -504,7 +504,7 @@ export function BieuThueViewer() {
       setSelectedChapter(null)
       setView('table')
     } catch {
-      setError('Tim kiem that bai. Vui long thu lai.')
+      setError('Tìm kiếm thất bại. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -550,18 +550,18 @@ export function BieuThueViewer() {
             <div className="px-2.5 py-2 text-white flex justify-between items-center" style={{ background: C.headerBg }}>
               <div className="flex items-center gap-3">
                 <button onClick={() => { setView('landing'); setData([]); setSelectedChapter(null); setSearchMode(false); setSearchRaw('') }} className="text-white/80 hover:text-white text-sm">
-                  {"← Trang chinh"}
+                  {"← Trang chính"}
                 </button>
                 <div>
-                  <div className="text-[13px] font-bold">BIEU THUE XNK 2026</div>
+                  <div className="text-[13px] font-bold">BIỂU THUẾ XNK 2026</div>
                   <div className="text-[9px] font-mono" style={{ color: '#b8dbb4' }}>ND 144/2024 . TT 31/2022 . SEN 2022</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <ChapterSelector selected={selectedChapter} onSelect={handleSelectChapter} />
                 <div className="text-[8px] text-right leading-relaxed hidden md:block" style={{ color: '#c8e6c9' }}>
-                  <span className="bg-blue-50 text-blue-900 px-1 rounded-sm font-bold font-mono">SEN</span> nhan = modal
-                  <br />{"📜 nhan = panel trai"}
+                  <span className="bg-blue-50 text-blue-900 px-1 rounded-sm font-bold font-mono">SEN</span> nhấn = modal
+                  <br />{"📜 nhấn = panel trái"}
                 </div>
               </div>
             </div>
@@ -573,7 +573,7 @@ export function BieuThueViewer() {
                 ref={searchRef}
                 value={searchRaw}
                 onChange={e => setSearchRaw(e.target.value)}
-                placeholder={data.length > 0 && !searchMode ? 'Loc trong chuong...' : 'Ma HS hoac ten hang hoa...'}
+                placeholder={data.length > 0 && !searchMode ? 'Lọc trong chương...' : 'Mã HS hoặc tên hàng hoá...'}
                 className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm outline-none bg-gray-50 focus:border-green-400 focus:ring-1 focus:ring-green-200"
               />
               {searchRaw && (
@@ -583,7 +583,7 @@ export function BieuThueViewer() {
               )}
               {(searchMode || data.length === 0) && (
                 <button type="submit" disabled={loading || !searchRaw.trim()} className="px-3 py-1.5 bg-green-700 text-white rounded text-xs font-medium disabled:opacity-50">
-                  {loading ? 'Dang tim...' : 'Tim'}
+                  {loading ? 'Đang tìm...' : 'Tìm'}
                 </button>
               )}
             </form>
@@ -598,7 +598,7 @@ export function BieuThueViewer() {
                   borderBottom: `1px solid ${C.borderLight}`,
                 }}
               >
-                {localMatched.size > 0 ? `${localMatched.size} ket qua` : 'Khong tim thay trong chuong nay'}
+                {localMatched.size > 0 ? `${localMatched.size} kết quả` : 'Không tìm thấy trong chương này'}
               </div>
             )}
 
@@ -614,7 +614,7 @@ export function BieuThueViewer() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                Dang tai du lieu...
+                Đang tải dữ liệu...
               </div>
             )}
 
@@ -622,8 +622,8 @@ export function BieuThueViewer() {
             {!loading && data.length === 0 && !error && (
               <div className="p-12 text-center text-gray-400">
                 <div className="text-4xl mb-3">{"📋"}</div>
-                <p className="font-medium mb-1">Chon chuong hoac tim kiem de bat dau</p>
-                <p className="text-xs">97 chuong . 11,871 ma HS . Du lieu bieu thue 2026</p>
+                <p className="font-medium mb-1">Chọn chương hoặc tìm kiếm để bắt đầu</p>
+                <p className="text-xs">97 chương . 11.871 mã HS . Dữ liệu biểu thuế 2026</p>
               </div>
             )}
 
@@ -659,7 +659,7 @@ export function BieuThueViewer() {
                 </table>
 
                 <div className="p-2 text-[9px] text-gray-400 font-mono text-center bg-gray-100">
-                  WA26 . Bieu thue XNK 2026 . {data.filter(r => r.type === 'item').length} dong du lieu . 2 so cuoi ma 8 so in dam
+                  WA26 . Biểu thuế XNK 2026 . {data.filter(r => r.type === 'item').length} dòng dữ liệu . 2 số cuối mã 8 số in đậm
                 </div>
               </div>
             )}
