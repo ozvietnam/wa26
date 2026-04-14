@@ -158,16 +158,21 @@ function getLocalMatches(q: string, data: BieuThueRow[]): Set<number> {
   return m
 }
 
+// ── Shared cell style ──
+const bdr = `1px solid ${C.border}`
+const bdrL = `1px solid ${C.borderLight}`
+
 // ── Tax cell ──
 function TaxCell({ val, isAcfta }: { val?: string; isAcfta?: boolean }) {
   const z = val === '0'
   return (
     <td
-      className="px-1.5 py-1 align-top text-center font-mono text-[11.5px]"
+      className="px-1 py-[3px] align-top text-center font-mono"
       style={{
-        borderBottom: `1px solid ${C.borderLight}`,
-        borderRight: '1px solid #e8e8e8',
-        width: isAcfta ? 46 : 42,
+        fontSize: 11,
+        borderBottom: bdrL,
+        borderRight: bdrL,
+        width: isAcfta ? 50 : 44,
         color: z ? '#0a7a00' : isAcfta ? '#b71c1c' : C.ink,
         fontWeight: z ? 700 : isAcfta ? 700 : 400,
         background: z ? '#e8f5e9' : isAcfta ? '#fff8f8' : 'transparent',
@@ -178,99 +183,111 @@ function TaxCell({ val, isAcfta }: { val?: string; isAcfta?: boolean }) {
   )
 }
 
-// ── Table row ──
+// ── Table row — matches Excel screenshot exactly ──
 function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: string; hit: boolean }) {
   const { setPanel, setModal } = useContext(OvCtx)
 
+  // CHAPTER — full-width green band
   if (row.type === 'chapter') {
     return (
       <tr data-idx={idx} style={{ background: C.chapterBg }}>
-        <td colSpan={7} className="p-2 font-bold text-[13px] leading-relaxed" style={{ borderBottom: `2px solid ${C.headerBg}`, color: C.green }}>
-          <span className="font-mono text-[14px] mr-2">Ch. {row.code}</span>
+        <td colSpan={8} className="px-2 py-[5px] font-bold leading-snug" style={{ fontSize: 12, borderBottom: `2px solid ${C.headerBg}`, color: C.green }}>
+          <span className="font-mono mr-1.5" style={{ fontSize: 13 }}>{'Ch\u01b0\u01a1ng'} {row.code}</span>
           <HL text={row.desc} q={q} />
           {row.note && (
             <button
               onClick={() => setPanel({ type: `Chu giai Chuong ${row.code}`, title: `Chuong ${row.code} — ${row.desc}`, ...row.note! })}
-              className="ml-1.5 border rounded-sm px-1 cursor-pointer text-[10px] font-semibold align-middle"
-              style={{ borderColor: '#c8e6c9', color: C.green, background: '#edf5e8' }}
-            >
-              {"📜"}
-            </button>
+              className="ml-1 border rounded-sm px-0.5 cursor-pointer font-semibold align-middle"
+              style={{ fontSize: 9, borderColor: '#c8e6c9', color: C.green, background: '#edf5e8' }}
+            >{"📜"}</button>
           )}
         </td>
       </tr>
     )
   }
 
+  // HEADING (4-digit) — V empty | code | desc spans rest
   if (row.type === 'heading') {
     return (
       <tr data-idx={idx} style={{ background: C.headingBg }}>
-        <td colSpan={7} className="px-2.5 py-1.5 font-semibold text-[12px] leading-relaxed" style={{ borderBottom: `1px solid ${C.border}`, color: C.ink }}>
+        <td className="px-1 py-[3px] align-top" style={{ borderBottom: bdr, borderRight: bdrL, width: 24 }} />
+        <td className="px-1 py-[3px] align-top whitespace-nowrap" style={{ borderBottom: bdr, borderRight: bdrL }}>
           <HSCode code={row.code} q={q} />
-          <span className="ml-2"><HL text={row.desc} q={q} /></span>
+        </td>
+        <td colSpan={6} className="px-1.5 py-[3px] align-top leading-snug" style={{ fontSize: 11, borderBottom: bdr, color: C.ink, fontWeight: 600 }}>
+          <HL text={row.desc} q={q} />
           {row.note && (
             <button
               onClick={() => setPanel({ type: `Chu giai nhom ${row.code}`, title: row.desc.slice(0, 80), ...row.note! })}
-              className="ml-1.5 border rounded-sm px-1 cursor-pointer text-[10px] font-semibold align-middle"
-              style={{ borderColor: '#c8e6c9', color: C.green, background: '#edf5e8' }}
-            >
-              {"📜"}
-            </button>
+              className="ml-1 border rounded-sm px-0.5 cursor-pointer font-semibold align-middle"
+              style={{ fontSize: 9, borderColor: '#c8e6c9', color: C.green, background: '#edf5e8' }}
+            >{"📜"}</button>
           )}
         </td>
       </tr>
     )
   }
 
+  // SUB (6-digit or desc-only) — V | code | desc spans rest
   if (row.type === 'sub') {
     return (
       <tr data-idx={idx} style={{ background: row.v === 1 ? C.subBg : '#fff' }}>
-        <td className="px-1.5 py-1 align-top" style={{ borderBottom: `1px solid ${C.borderLight}`, borderRight: '1px solid #e8e8e8' }}>
+        <td className="px-1 py-[3px] align-top text-center font-mono" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, width: 24, color: C.ink3 }}>
+          {row.v && row.v > 0 ? row.v : ''}
+        </td>
+        <td className="px-1 py-[3px] align-top whitespace-nowrap" style={{ borderBottom: bdrL, borderRight: bdrL }}>
           <HSCode code={row.code} q={q} />
         </td>
-        <td colSpan={6} className="px-1.5 py-1 text-[11.5px] align-top" style={{ borderBottom: `1px solid ${C.borderLight}`, fontWeight: row.v === 1 ? 600 : 400, color: C.ink }}>
+        <td colSpan={6} className="px-1.5 py-[3px] align-top leading-snug" style={{ fontSize: 11, borderBottom: bdrL, fontWeight: row.v === 1 ? 600 : 400, color: C.ink }}>
           <HL text={row.desc} q={q} />
         </td>
       </tr>
     )
   }
 
-  // ITEM row
+  // ITEM (8-digit) — all columns
   const isAlt = idx % 2 === 1
   const bg = hit ? '#fffff0' : isAlt ? C.rowAlt : C.rowWhite
   const bl = hit ? '3px solid #c8a800' : '3px solid transparent'
-  const tdBase = 'px-1.5 py-1 align-top text-[11.5px]'
-  const tdBorder = { borderBottom: `1px solid ${C.borderLight}`, borderRight: '1px solid #e8e8e8' }
 
   return (
     <tr data-idx={idx} style={{ background: bg, borderLeft: bl }}>
-      <td className={`${tdBase} whitespace-nowrap`} style={tdBorder}>
+      {/* V */}
+      <td className="px-1 py-[3px] align-top text-center font-mono" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, width: 24, color: C.ink3 }}>
+        {row.v && row.v > 0 ? row.v : ''}
+      </td>
+      {/* Mã hàng */}
+      <td className="px-1 py-[3px] align-top whitespace-nowrap" style={{ borderBottom: bdrL, borderRight: bdrL }}>
         <HSCode code={row.code} q={q} />
         {row.mucCanhBao && (
-          <span className={`ml-1 inline-block w-2 h-2 rounded-full ${
+          <span className={`ml-0.5 inline-block w-1.5 h-1.5 rounded-full align-middle ${
             row.mucCanhBao === 'RED' ? 'bg-red-500' :
             row.mucCanhBao === 'ORANGE' ? 'bg-orange-400' :
             'bg-yellow-400'
           }`} title={row.mucCanhBao} />
         )}
       </td>
-      <td className={tdBase} style={{ ...tdBorder, color: C.ink, lineHeight: 1.4 }}>
+      {/* Mô tả */}
+      <td className="px-1.5 py-[3px] align-top leading-snug" style={{ fontSize: 11, borderBottom: bdrL, borderRight: bdrL, color: C.ink }}>
         <HL text={row.desc} q={q} />
         {row.sen && (
-          <button
+          <sup
             onClick={() => setModal({ title: `Ma ${row.code}`, ...row.sen! })}
-            className="border-none rounded-sm px-1 cursor-pointer font-mono font-bold ml-1 align-super leading-none"
-            style={{ fontSize: 8.5, color: '#1a5276', background: '#e3f0fd' }}
-          >SEN</button>
+            className="cursor-pointer font-mono font-bold ml-0.5"
+            style={{ fontSize: 8, color: '#1a5276' }}
+          >(SEN)</sup>
         )}
       </td>
-      <td className={`${tdBase} text-center text-[10px]`} style={{ ...tdBorder, color: C.ink3, width: 40 }}>{row.unit}</td>
+      {/* ĐVT */}
+      <td className="px-1 py-[3px] align-top text-center" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, color: C.ink3, width: 42 }}>{row.unit}</td>
+      {/* Tax columns */}
       <TaxCell val={row.nkud} />
       <TaxCell val={row.vat} />
       <TaxCell val={row.acfta} isAcfta />
-      <td className={`${tdBase} text-center`} style={{ ...tdBorder, width: 30 }}>
+      {/* Chính sách */}
+      <td className="px-1 py-[3px] align-top text-center" style={{ fontSize: 10, borderBottom: bdrL, width: 28 }}>
         {row.policies?.map((p, i) => (
-          <span key={i} title={p} className="text-[11px] cursor-help">{"⚠️"}</span>
+          <span key={i} title={p} className="cursor-help">{"⚠️"}</span>
         ))}
       </td>
     </tr>
@@ -516,7 +533,8 @@ export function BieuThueViewer() {
     setTimeout(() => searchRef.current?.focus(), 100)
   }, [])
 
-  const thBase = 'px-1 py-1.5 text-[10.5px] font-semibold text-center whitespace-nowrap'
+  const thStyle: React.CSSProperties = { borderBottom: `2px solid ${C.green}`, borderRight: '1px solid #3d7a42', fontSize: 10.5, fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', padding: '5px 3px' }
+  const thBase = 'text-center whitespace-nowrap'
 
   return (
     <OverlayProvider>
@@ -614,14 +632,23 @@ export function BieuThueViewer() {
               <div className="bg-white">
                 <table ref={tbRef} className="w-full" style={{ borderCollapse: 'collapse' }}>
                   <thead>
+                    {/* Main header */}
                     <tr style={{ background: C.headerBg, color: C.headerText }}>
-                      <th className={`${thBase} text-left pl-2`} style={{ borderBottom: `2px solid ${C.green}`, borderRight: '1px solid #3d7a42' }}>Ma hang</th>
-                      <th className={`${thBase} text-left`} style={{ borderBottom: `2px solid ${C.green}`, borderRight: '1px solid #3d7a42' }}>Mo ta hang hoa</th>
-                      <th className={thBase} style={{ width: 40, borderBottom: `2px solid ${C.green}`, borderRight: '1px solid #3d7a42' }}>DVT</th>
-                      <th className={thBase} style={{ width: 42, borderBottom: `2px solid ${C.green}`, borderRight: '1px solid #3d7a42' }}>NK uu dai</th>
-                      <th className={thBase} style={{ width: 34, borderBottom: `2px solid ${C.green}`, borderRight: '1px solid #3d7a42' }}>VAT</th>
-                      <th className={`${thBase} font-extrabold`} style={{ width: 46, background: C.acftaHeader, borderBottom: `2px solid ${C.green}`, borderRight: '1px solid #3d7a42' }}>ACFTA</th>
-                      <th className={thBase} style={{ width: 30, borderBottom: `2px solid ${C.green}` }}>{"⚠"}</th>
+                      <th className={thBase} style={{ ...thStyle, width: 24 }}>V</th>
+                      <th className={thBase} style={{ ...thStyle, textAlign: 'left', paddingLeft: 6 }}>{"M\u00e3 h\u00e0ng"}</th>
+                      <th className={thBase} style={{ ...thStyle, textAlign: 'left', paddingLeft: 6 }}>{"M\u00f4 t\u1ea3 h\u00e0ng ho\u00e1 - Ti\u1ebfng Vi\u1ec7t"}</th>
+                      <th className={thBase} style={{ ...thStyle, width: 42 }}>{"ĐVT"}</th>
+                      <th className={thBase} style={{ ...thStyle, width: 50 }}>{"NK \u01b0u \u0111\u00e3i"}</th>
+                      <th className={thBase} style={{ ...thStyle, width: 38 }}>VAT</th>
+                      <th className={thBase} style={{ ...thStyle, width: 50, background: C.acftaHeader, fontWeight: 800 }}>ACFTA</th>
+                      <th className={thBase} style={{ ...thStyle, width: 28, borderRight: 'none' }}>{"⚠"}</th>
+                    </tr>
+                    {/* Sub-header A, B, C */}
+                    <tr style={{ background: C.headerBg, color: '#c8e6c9' }}>
+                      <td style={{ borderBottom: `1px solid ${C.green}`, borderRight: '1px solid #3d7a42', padding: '1px 3px', fontSize: 9, fontStyle: 'italic', textAlign: 'center' }}>A</td>
+                      <td style={{ borderBottom: `1px solid ${C.green}`, borderRight: '1px solid #3d7a42', padding: '1px 6px', fontSize: 9, fontStyle: 'italic' }}>B</td>
+                      <td style={{ borderBottom: `1px solid ${C.green}`, borderRight: '1px solid #3d7a42', padding: '1px 6px', fontSize: 9, fontStyle: 'italic' }}>C</td>
+                      <td colSpan={5} style={{ borderBottom: `1px solid ${C.green}`, padding: '1px 3px', fontSize: 9, fontStyle: 'italic', textAlign: 'center' }} />
                     </tr>
                   </thead>
                   <tbody>
