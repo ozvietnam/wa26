@@ -412,7 +412,7 @@ export async function handleCustoms({
       .replace('{file_info}', fileInfo ? `\n${fileInfo}` : '')
       .replace('{history}', historyText ? `\nHỘI THOẠI TRƯỚC:${historyText}` : '')
 
-    const raw = await callLLM(prompt, apiKey, { file, temperature: 0.2, maxTokens: 1500 })
+    const raw = await callLLM(prompt, undefined, { file, temperature: 0.2, maxTokens: 1500, tier: 'heavy' })
 
     let cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     if (!cleaned.startsWith('{')) {
@@ -531,7 +531,7 @@ Trả lời tiếng Việt, gợi ý mã HS dự kiến và hỏi thêm chi ti�
   apiLog.push({ step: 'respond', status: 'calling' })
   let reply: string
   try {
-    reply = await callLLM(responsePrompt, apiKey, { file, maxTokens: 4000 })
+    reply = await callLLM(responsePrompt, undefined, { file, maxTokens: 4000, tier: 'heavy' })
     apiLog.push({ step: 'respond', status: 'done', length: reply.length })
   } catch (err) {
     apiLog.push({ step: 'respond', status: 'error', error: (err as Error).message })

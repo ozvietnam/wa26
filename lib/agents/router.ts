@@ -79,7 +79,7 @@ export async function classifyIntent(
   const prompt = `${CLASSIFY_PROMPT}\n${historyHint}\nTin nhắn: "${message}"`
 
   try {
-    const raw = await callLLM(prompt, _apiKey, { temperature: 0.1, maxTokens: 100 })
+    const raw = await callLLM(prompt, undefined, { temperature: 0.1, maxTokens: 100, tier: 'fast' })
     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const result = JSON.parse(cleaned)
 

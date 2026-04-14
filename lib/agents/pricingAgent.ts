@@ -21,7 +21,7 @@ export async function handlePricing({
   const prompt = `${SYSTEM_PROMPT}\n\n${pricingContext}\n${historyText}\nKhách hàng: "${message}"\n\nTính chi phí theo bảng giá.`
 
   apiLog.push({ step: 'llm_pricing', status: 'calling' })
-  const reply = await callLLM(prompt, apiKey, { temperature: 0.1, maxTokens: 4096 })
+  const reply = await callLLM(prompt, undefined, { temperature: 0.1, maxTokens: 4096, tier: 'heavy' })
   apiLog[apiLog.length - 1] = { step: 'llm_pricing', status: 'done' }
 
   return { reply, debug: { agent: 'pricing', apiCalls: apiLog } }

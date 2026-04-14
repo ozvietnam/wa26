@@ -27,7 +27,7 @@ export async function handleCare({
   const prompt = `${SYSTEM_PROMPT}\n${historyText}\nKhách hàng: "${message}"\n\nTrả lời ngắn gọn, thân thiện.`
 
   apiLog.push({ step: 'llm_care', status: 'calling' })
-  const reply = await callLLM(prompt, apiKey, { temperature: 0.5, maxTokens: 2048 })
+  const reply = await callLLM(prompt, undefined, { temperature: 0.5, maxTokens: 2048, tier: 'fast' })
   apiLog[apiLog.length - 1] = { step: 'llm_care', status: 'done' }
 
   return { reply, debug: { agent: 'care', apiCalls: apiLog } }

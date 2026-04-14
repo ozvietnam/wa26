@@ -31,7 +31,7 @@ export async function handleRegulation({
   const prompt = `${SYSTEM_PROMPT}\n\n${regContext}\n${ktcnContext}\n${historyText}\nKhách hàng: "${message}"\n\nTra cứu và giải thích.`
 
   apiLog.push({ step: 'llm_regulation', status: 'calling' })
-  const reply = await callLLM(prompt, apiKey, { temperature: 0.2, maxTokens: 6144 })
+  const reply = await callLLM(prompt, undefined, { temperature: 0.2, maxTokens: 6144, tier: 'heavy' })
   apiLog[apiLog.length - 1] = { step: 'llm_regulation', status: 'done' }
 
   return { reply, debug: { agent: 'regulation', apiCalls: apiLog } }
