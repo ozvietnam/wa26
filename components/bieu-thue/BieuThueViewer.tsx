@@ -161,24 +161,35 @@ function getLocalMatches(q: string, data: BieuThueRow[]): Set<number> {
 // ── Shared cell style ──
 const bdr = `1px solid ${C.border}`
 const bdrL = `1px solid ${C.borderLight}`
+const PY = '1px' // compact vertical padding like Excel
 
 // ── Tax cell ──
 function TaxCell({ val, isAcfta }: { val?: string; isAcfta?: boolean }) {
-  const z = val === '0'
+  // Truncate long FTA values like "0 (– KH, TH)" → "0*"
+  let display = val || ''
+  const z = display === '0'
+  if (display.length > 6) {
+    const num = display.match(/^[\d.]+/)
+    display = num ? num[0] + '*' : display.slice(0, 5) + '…'
+  }
   return (
     <td
-      className="px-1 py-[3px] align-top text-center font-mono"
+      className="px-1 align-top text-center font-mono whitespace-nowrap overflow-hidden"
       style={{
         fontSize: 11,
+        paddingTop: PY,
+        paddingBottom: PY,
         borderBottom: bdrL,
         borderRight: bdrL,
-        width: isAcfta ? 50 : 44,
+        width: isAcfta ? 44 : 40,
+        maxWidth: isAcfta ? 44 : 40,
         color: z ? '#0a7a00' : isAcfta ? '#b71c1c' : C.ink,
         fontWeight: z ? 700 : isAcfta ? 700 : 400,
         background: z ? '#e8f5e9' : isAcfta ? '#fff8f8' : 'transparent',
       }}
+      title={val || ''}
     >
-      {val || ''}
+      {display}
     </td>
   )
 }
@@ -191,7 +202,7 @@ function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: stri
   if (row.type === 'chapter') {
     return (
       <tr data-idx={idx} style={{ background: C.chapterBg }}>
-        <td colSpan={8} className="px-2 py-[5px] font-bold leading-snug" style={{ fontSize: 12, borderBottom: `2px solid ${C.headerBg}`, color: C.green }}>
+        <td colSpan={8} className="px-2 py-0.5 font-bold leading-tight" style={{ fontSize: 12, borderBottom: `2px solid ${C.headerBg}`, color: C.green }}>
           <span className="font-mono mr-1.5" style={{ fontSize: 13 }}>{'Ch\u01b0\u01a1ng'} {row.code}</span>
           <HL text={row.desc} q={q} />
           {row.note && (
@@ -210,11 +221,11 @@ function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: stri
   if (row.type === 'heading') {
     return (
       <tr data-idx={idx} style={{ background: C.headingBg }}>
-        <td className="px-1 py-[3px] align-top" style={{ borderBottom: bdr, borderRight: bdrL, width: 24 }} />
-        <td className="px-1 py-[3px] align-top whitespace-nowrap" style={{ borderBottom: bdr, borderRight: bdrL }}>
+        <td className="px-1 py-px align-top" style={{ borderBottom: bdr, borderRight: bdrL, width: 24 }} />
+        <td className="px-1 py-px align-top whitespace-nowrap" style={{ borderBottom: bdr, borderRight: bdrL }}>
           <HSCode code={row.code} q={q} />
         </td>
-        <td colSpan={6} className="px-1.5 py-[3px] align-top leading-snug" style={{ fontSize: 11, borderBottom: bdr, color: C.ink, fontWeight: 600 }}>
+        <td colSpan={6} className="px-1.5 py-px align-top leading-tight" style={{ fontSize: 11, borderBottom: bdr, color: C.ink, fontWeight: 600 }}>
           <HL text={row.desc} q={q} />
           {row.note && (
             <button
@@ -232,13 +243,13 @@ function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: stri
   if (row.type === 'sub') {
     return (
       <tr data-idx={idx} style={{ background: row.v === 1 ? C.subBg : '#fff' }}>
-        <td className="px-1 py-[3px] align-top text-center font-mono" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, width: 24, color: C.ink3 }}>
+        <td className="px-1 py-px align-top text-center font-mono" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, width: 24, color: C.ink3 }}>
           {row.v && row.v > 0 ? row.v : ''}
         </td>
-        <td className="px-1 py-[3px] align-top whitespace-nowrap" style={{ borderBottom: bdrL, borderRight: bdrL }}>
+        <td className="px-1 py-px align-top whitespace-nowrap" style={{ borderBottom: bdrL, borderRight: bdrL }}>
           <HSCode code={row.code} q={q} />
         </td>
-        <td colSpan={6} className="px-1.5 py-[3px] align-top leading-snug" style={{ fontSize: 11, borderBottom: bdrL, fontWeight: row.v === 1 ? 600 : 400, color: C.ink }}>
+        <td colSpan={6} className="px-1.5 py-px align-top leading-tight" style={{ fontSize: 11, borderBottom: bdrL, fontWeight: row.v === 1 ? 600 : 400, color: C.ink }}>
           <HL text={row.desc} q={q} />
         </td>
       </tr>
@@ -253,11 +264,11 @@ function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: stri
   return (
     <tr data-idx={idx} style={{ background: bg, borderLeft: bl }}>
       {/* V */}
-      <td className="px-1 py-[3px] align-top text-center font-mono" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, width: 24, color: C.ink3 }}>
+      <td className="px-1 py-px align-top text-center font-mono" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, width: 24, color: C.ink3 }}>
         {row.v && row.v > 0 ? row.v : ''}
       </td>
       {/* Mã hàng */}
-      <td className="px-1 py-[3px] align-top whitespace-nowrap" style={{ borderBottom: bdrL, borderRight: bdrL }}>
+      <td className="px-1 py-px align-top whitespace-nowrap" style={{ borderBottom: bdrL, borderRight: bdrL }}>
         <HSCode code={row.code} q={q} />
         {row.mucCanhBao && (
           <span className={`ml-0.5 inline-block w-1.5 h-1.5 rounded-full align-middle ${
@@ -268,7 +279,7 @@ function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: stri
         )}
       </td>
       {/* Mô tả */}
-      <td className="px-1.5 py-[3px] align-top leading-snug" style={{ fontSize: 11, borderBottom: bdrL, borderRight: bdrL, color: C.ink }}>
+      <td className="px-1.5 py-px align-top leading-tight" style={{ fontSize: 11, borderBottom: bdrL, borderRight: bdrL, color: C.ink }}>
         <HL text={row.desc} q={q} />
         {row.sen && (
           <sup
@@ -279,13 +290,13 @@ function TableRow({ row, idx, q, hit }: { row: BieuThueRow; idx: number; q: stri
         )}
       </td>
       {/* ĐVT */}
-      <td className="px-1 py-[3px] align-top text-center" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, color: C.ink3, width: 42 }}>{row.unit}</td>
+      <td className="px-1 py-px align-top text-center" style={{ fontSize: 10, borderBottom: bdrL, borderRight: bdrL, color: C.ink3, width: 42 }}>{row.unit}</td>
       {/* Tax columns */}
       <TaxCell val={row.nkud} />
       <TaxCell val={row.vat} />
       <TaxCell val={row.acfta} isAcfta />
       {/* Chính sách */}
-      <td className="px-1 py-[3px] align-top text-center" style={{ fontSize: 10, borderBottom: bdrL, width: 28 }}>
+      <td className="px-1 py-px align-top text-center" style={{ fontSize: 10, borderBottom: bdrL, width: 28 }}>
         {row.policies?.map((p, i) => (
           <span key={i} title={p} className="cursor-help">{"⚠️"}</span>
         ))}

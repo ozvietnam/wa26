@@ -124,6 +124,7 @@ export function transformChapterRecords(
   for (const rec of records) {
     const code = rec.hs
     const fact = rec.fact_layer
+    const legal = rec.legal_layer
     const desc = fact?.vn || code
 
     // Clean dash prefixes: "- - - -" or "– – –" or mixed
@@ -133,11 +134,15 @@ export function transformChapterRecords(
     if (rec.heading && !seenHeadings.has(rec.heading)) {
       seenHeadings.add(rec.heading)
       const headingNote = buildNote(rec)
+      // Use chu_giai_nhom first line as heading description
+      const chuGiai = legal?.chu_giai_nhom
+      const headingDesc = (chuGiai && typeof chuGiai === 'string')
+        ? chuGiai.split('\n')[0].slice(0, 200)
+        : cleanDesc(desc)
       rows.push({
         type: 'heading',
         code: rec.heading,
-        desc: cleanDesc(desc),
-        descEn: fact?.en ? cleanDesc(fact.en) : undefined,
+        desc: headingDesc,
         note: headingNote,
       })
     }
