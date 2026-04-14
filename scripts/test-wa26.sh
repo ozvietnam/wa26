@@ -70,7 +70,7 @@ QUERIES=(
 )
 
 for q in "${QUERIES[@]}"; do
-  result=$(curl -s -m 30 "$BASE/api/chat" \
+  result=$(curl -s -m 90 "$BASE/api/chat" \
     -H "Content-Type: application/json" \
     -d "{\"message\":\"$q\",\"history\":[],\"sessionId\":\"test_$(date +%s)\"}")
 

@@ -15,7 +15,7 @@ export async function handleRegulation({
   message: string; history?: Array<{ role: string; content: string }>; apiKey?: string
 }) {
   const apiLog: Array<{ step: string; status: string }> = []
-  const regContext = `VĂN BẢN:\n${JSON.stringify(regulationsData, null, 2)}`
+  const regContext = `VĂN BẢN:\n${JSON.stringify(regulationsData)}`
   const historyText = formatHistory(history)
 
   let ktcnContext = ''

@@ -75,6 +75,7 @@ export interface LLMOptions {
   temperature?: number
   maxTokens?: number
   tier?: 'fast' | 'heavy' // Controls model selection
+  thinkingBudget?: number  // Override default (fast=0, heavy=2048)
   retries?: number
 }
 
@@ -97,7 +98,7 @@ export async function callLLM(prompt: string, _apiKey?: string, options: LLMOpti
   } = options
 
   const model = tier === 'fast' ? MODEL_FAST : MODEL_HEAVY
-  const thinkingBudget = tier === 'fast' ? 0 : 2048 // No thinking for fast tier
+  const thinkingBudget = options.thinkingBudget ?? (tier === 'fast' ? 0 : 2048)
   const effectiveMaxTokens = tier === 'fast' ? Math.min(maxTokens, 2048) : maxTokens
 
   const maxAttempts = Math.max(retries + 1, ALL_KEYS.length)

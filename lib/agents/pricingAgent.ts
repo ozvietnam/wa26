@@ -15,7 +15,7 @@ export async function handlePricing({
   message: string; history?: Array<{ role: string; content: string }>; apiKey?: string
 }) {
   const apiLog: Array<{ step: string; status: string }> = []
-  const pricingContext = `BẢNG GIÁ (${(pricingData as { updated?: string }).updated}):\n${JSON.stringify((pricingData as { services?: unknown }).services, null, 2)}`
+  const pricingContext = `BẢNG GIÁ (${(pricingData as { updated?: string }).updated}):\n${JSON.stringify((pricingData as { services?: unknown }).services)}`
   const historyText = formatHistory(history)
 
   const prompt = `${SYSTEM_PROMPT}\n\n${pricingContext}\n${historyText}\nKhách hàng: "${message}"\n\nTính chi phí theo bảng giá.`
