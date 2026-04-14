@@ -8,6 +8,9 @@ export default function Navbar() {
           WA26
         </Link>
         <div className="flex gap-6 items-center">
+          <Link href="/bieu-thue-2026" className="hover:text-green-700 transition-colors font-medium">
+            Biểu thuế 2026
+          </Link>
           <Link href="/tra-cuu-hs" className="hover:text-blue-700 transition-colors">
             Tra cứu HS
           </Link>
