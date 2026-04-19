@@ -1,6 +1,6 @@
 /* Import design system */
-@import '../styles/design-system.css';
-@import '../styles/animations.css';
+@import url('../styles/design-system.css');
+@import url('../styles/animations.css');
 
 @tailwind base;
 @tailwind components;
