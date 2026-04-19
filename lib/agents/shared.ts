@@ -50,18 +50,37 @@ const providers: Record<string, ProviderConfig> = {
     failedKeys: new Map(),
     cooldown: 60_000,
   },
+  deepseek: {
+    name: 'deepseek',
+    keys: (process.env.DEEPSEEK_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean),
+    keyIndex: 0,
+    failedKeys: new Map(),
+    cooldown: 60_000,
+  },
+  cerebras: {
+    name: 'cerebras',
+    keys: (process.env.CEREBRAS_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean),
+    keyIndex: 0,
+    failedKeys: new Map(),
+    cooldown: 30_000,
+  },
 }
 
 // === Tier → Provider Chain ===
+// Tier chains — thứ tự ưu tiên: FREE → rẻ → đắt
+// fast  : Groq 8b(free) → Cerebras 70b(nhanh,$0.6/M) → Gemini Flash(free)
+// heavy : Gemini 2.5(free) → DeepSeek R1($0.55/M) → OpenRouter → Groq 70b(free)
 const TIER_CHAIN = {
   fast: [
-    { provider: 'groq', model: 'llama-3.1-8b-instant', thinking: 0, maxTokens: 1024 },
-    { provider: 'gemini', model: 'gemini-2.5-flash', thinking: 0, maxTokens: 2048 },
+    { provider: 'groq',     model: 'llama-3.1-8b-instant',       thinking: 0, maxTokens: 1024 },
+    { provider: 'cerebras', model: 'llama3.1-70b',                thinking: 0, maxTokens: 2048 },
+    { provider: 'gemini',   model: 'gemini-2.5-flash',            thinking: 0, maxTokens: 2048 },
   ],
   heavy: [
-    { provider: 'gemini', model: 'gemini-2.5-flash', thinking: 2048, maxTokens: 8192 },
-    { provider: 'openrouter', model: 'google/gemini-2.0-flash-001', thinking: 0, maxTokens: 8192 },
-    { provider: 'groq', model: 'llama-3.3-70b-versatile', thinking: 0, maxTokens: 8192 },
+    { provider: 'gemini',     model: 'gemini-2.5-flash',          thinking: 2048, maxTokens: 8192 },
+    { provider: 'deepseek',   model: 'deepseek-reasoner',         thinking: 0,    maxTokens: 8192 },
+    { provider: 'openrouter', model: 'google/gemini-2.0-flash-001', thinking: 0,  maxTokens: 8192 },
+    { provider: 'groq',       model: 'llama-3.3-70b-versatile',   thinking: 0,    maxTokens: 8192 },
   ],
 }
 
@@ -115,6 +134,32 @@ export interface LLMOptions {
 /**
  * Call LLM with automatic provider fallback chain
  */
+
+// === Rate Limit Handler ===
+// Tự động retry khi gặp 429, với exponential backoff
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 2000
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      const msg = (err as Error).message
+      const is429 = /429|rate.?limit|RESOURCE_EXHAUSTED|quota/i.test(msg)
+      if (is429 && attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000
+        console.warn(`[LLM] 429 rate limit — retry ${attempt + 1}/${maxRetries} in ${Math.round(delay)}ms`)
+        await new Promise(r => setTimeout(r, delay))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('Max retries exceeded')
+}
+
 export async function callLLM(prompt: string, _apiKey?: string, options: LLMOptions = {}): Promise<string> {
   const { tier = 'heavy', temperature = 0.2, file, retries = 1 } = options
   const chain = TIER_CHAIN[tier]
@@ -135,13 +180,19 @@ export async function callLLM(prompt: string, _apiKey?: string, options: LLMOpti
       try {
         let result: string
         if (step.provider === 'gemini') {
-          result = await callGemini(prompt, key, { file, temperature, maxTokens, model: step.model, thinkingBudget: thinking })
+          result = await withRetry(() => callGemini(prompt, key, { file, temperature, maxTokens, model: step.model, thinkingBudget: thinking }))
         } else {
-          result = await callOpenAICompat(prompt, key, {
+          const apiUrlMap: Record<string, string> = {
+            groq:       'https://api.groq.com/openai/v1',
+            openrouter: 'https://openrouter.ai/api/v1',
+            deepseek:   'https://api.deepseek.com/v1',
+            cerebras:   'https://api.cerebras.ai/v1',
+          }
+          result = await withRetry(() => callOpenAICompat(prompt, key, {
             temperature, maxTokens, model: step.model,
-            apiUrl: step.provider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://openrouter.ai/api/v1',
+            apiUrl: apiUrlMap[step.provider] || 'https://api.openai.com/v1',
             providerName: step.provider,
-          })
+          }))
         }
 
         trackUsage(step.provider, key, result.length) // approximate

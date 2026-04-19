@@ -63,14 +63,20 @@ DỮ LIỆU THỰC TỪ HỆ THỐNG:
 
 NGUYÊN TẮC TRẢ LỜI:
 
+⚠️ BẮT BUỘC: LUÔN HIỂN THỊ MÃ HS DẠNG XXXX.XX.XX (ví dụ: 8481.80.99) trong mọi trường hợp, bất kể confidence.
+Nếu data có hs="84818099" → hiển thị 8481.80.99. Không bao giờ bỏ qua mã HS.
+
 1. SO SÁNH phán đoán vs data thực — nếu khác → "⚡ Lưu ý: theo biểu thuế 2026..."
 
-2. Confidence CAO (≥80%):
-   🎯 [MÃ HS] — [Tên SP]
+2. Confidence CAO (≥80%) — MÃ CHÍNH:
+   🎯 XXXX.XX.XX — [Tên SP]
    Thuế NK (MFN): X% | ACFTA (TQ): X% | VAT: X%
    📌 Căn cứ: [chú giải/SEN/TB-TCHQ]
 
-3. Confidence TRUNG BÌNH (50-79%): So sánh 2-3 mã
+3. Confidence TRUNG BÌNH (50-79%) — SO SÁNH các mã:
+   🔹 XXXX.XX.XX — [Tên SP A] | MFN: X% | VAT: X%
+   🔹 XXXX.XX.XX — [Tên SP B] | MFN: X% | VAT: X%
+   (Luôn dùng format XXXX.XX.XX cho TẤT CẢ mã HS được liệt kê)
 
 4. LUÔN KẾT THÚC bằng gợi ý follow-up (3-5 mục phù hợp):
    → "Xem chú giải chi tiết"
@@ -81,6 +87,7 @@ NGUYÊN TẮC TRẢ LỜI:
 
 5. Thuế suất CHỈ từ fact_layer.rates. LUÔN HIỂN THỊ THUẾ. Null → "—"
 6. Viết tiếng Việt, thân thiện, chuyên nghiệp
+7. Định dạng mã HS: 8 số → XXXX.XX.XX (thêm dấu chấm ở vị trí 4 và 6)
 
 QUAN TRỌNG: Luôn kết thúc bằng disclaimer:
 _⚠️ Thông tin trên chỉ mang tính chất tham khảo, không thay thế kết quả phân loại chính thức của cơ quan Hải quan._`
@@ -281,11 +288,18 @@ async function executeLookups(commands: Array<{ tool: string; params: string; wh
 function buildDataContext(searchSources: SearchSources, allResults: any[], hsDetails: any[], precedentData: any[], ktcnData: any): string {
   const parts: string[] = []
 
+  // Helper: format raw 8-digit HS code to XXXX.XX.XX
+  const fmtHS = (raw: string): string => {
+    const s = (raw || '').replace(/\./g, '')
+    if (s.length === 8) return `${s.slice(0,4)}.${s.slice(4,6)}.${s.slice(6,8)}`
+    return raw
+  }
+
   if (hsDetails.length > 0) {
-    
+
     const details = hsDetails.slice(0, 3).map((d: any) => {
-      
-      const detail: any = { code: d.code }
+
+      const detail: any = { code: fmtHS(d.code), raw_code: d.code }
       if (d.fact_layer) {
         const rates = d.fact_layer.rates || {}
         detail.tax = {
@@ -359,11 +373,15 @@ function buildDataContext(searchSources: SearchSources, allResults: any[], hsDet
   }
 
   if (allResults.length > 0 && hsDetails.length === 0) {
-    
-    const trimmed = allResults.slice(0, 8).map((r: any) => ({
-      hs: r.hs || r.ma_hs || r.hs_code, vn: (r.vn || r.ten_vn || r.mo_ta || '').substring(0, 80),
-    }))
-    parts.push(`TÌM KIẾM:${JSON.stringify(trimmed)}`)
+
+    const trimmed = allResults.slice(0, 8).map((r: any) => {
+      const rawCode = r.hs || r.ma_hs || r.hs_code || ''
+      return {
+        hs: fmtHS(rawCode),
+        vn: (r.vn || r.ten_vn || r.mo_ta || '').substring(0, 80),
+      }
+    })
+    parts.push(`TÌM KIẾM (hiển thị mã HS dạng XXXX.XX.XX):${JSON.stringify(trimmed)}`)
   }
 
   return parts.join('\n\n')
@@ -551,13 +569,32 @@ _⚠️ Thông tin trên chỉ mang tính chất tham khảo._`
   try {
     reply = await callLLM(responsePrompt, undefined, { file, maxTokens: 4000, tier: 'heavy' })
     apiLog.push({ step: 'respond', status: 'done', length: reply.length })
+
+    // FORCE HS Code into reply if LLM omitted it
+    if (reply && (hsDetails.length > 0 || allResults.length > 0)) {
+      const rawHs = hsDetails[0]?.code || allResults[0]?.hs || allResults[0]?.ma_hs || allResults[0]?.hs_code || ''
+      const cleanHs = rawHs.replace(/\./g, '')
+      const formattedHs = cleanHs.length === 8
+        ? `${cleanHs.slice(0,4)}.${cleanHs.slice(4,6)}.${cleanHs.slice(6,8)}`
+        : rawHs
+      if (formattedHs && !reply.includes(formattedHs) && !reply.includes(cleanHs)) {
+        const productName = hsDetails[0]?.fact_layer?.vn || allResults[0]?.vn || allResults[0]?.ten_vn || allResults[0]?.mo_ta || ''
+        const prefix = `🎯 **${formattedHs}** — ${productName}\n\n`
+        reply = prefix + reply
+        apiLog.push({ step: 'hs_force', status: 'prepended', code: formattedHs })
+      }
+    }
   } catch (err) {
     apiLog.push({ step: 'respond', status: 'error', error: (err as Error).message })
     // BUG-1 FIX: Handle allResults > 0 but hsDetails === 0
     if (hsDetails.length > 0) {
       const d = hsDetails[0]
       const r = d.fact_layer?.rates || {}
-      reply = `🎯 **${d.code}** — ${d.fact_layer?.vn || 'N/A'}\nThuế NK (MFN): ${r.mfn ?? '—'}% | ACFTA (TQ): ${r.acfta ?? '—'}% | VAT: ${r.vat ?? '—'}%\n\n💡 Hỏi thêm: "Xem chú giải chi tiết", "TB-TCHQ liên quan"`
+      const rawCode = d.code || ''
+      const fmtCode = rawCode.replace(/\./g, '').length === 8
+        ? `${rawCode.replace(/\./g,'').slice(0,4)}.${rawCode.replace(/\./g,'').slice(4,6)}.${rawCode.replace(/\./g,'').slice(6,8)}`
+        : rawCode
+      reply = `🎯 **${fmtCode}** — ${d.fact_layer?.vn || 'N/A'}\nThuế NK (MFN): ${r.mfn ?? '—'}% | ACFTA (TQ): ${r.acfta ?? '—'}% | VAT: ${r.vat ?? '—'}%\n\n💡 Hỏi thêm: "Xem chú giải chi tiết", "TB-TCHQ liên quan"`
     } else if (allResults.length > 0) {
       // Has search results but no details — show what we have
       const top = allResults.slice(0, 5).map((r: any) => {
