@@ -1,23 +1,185 @@
+/* Import design system */
+@import '../styles/design-system.css';
+@import '../styles/animations.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .btn-primary {
-    @apply bg-blue-700 text-white px-6 py-2.5 rounded-lg hover:bg-blue-800 transition-colors font-medium;
-  }
-  .btn-secondary {
-    @apply bg-sky-500 text-white px-6 py-2.5 rounded-lg hover:bg-sky-600 transition-colors font-medium;
-  }
-  .btn-outline {
-    @apply border-2 border-blue-700 text-blue-700 px-6 py-2.5 rounded-lg hover:bg-blue-700 hover:text-white transition-colors font-medium;
-  }
+/* =============================================
+   Claude-style Chat Theme
+   ============================================= */
+.claude-chat {
+  --bg-primary: #f9f7f3;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f0ece4;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5a5a5a;
+  --text-tertiary: #9a9a9a;
+  --border-primary: #e8e4dc;
+  --border-secondary: #f0ece4;
+  --accent-primary: #d97757;
+  --accent-secondary: #c4694d;
+
+  background-color: var(--bg-primary);
+}
+
+.claude-chat-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.claude-btn-ghost {
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  transition: all 0.15s;
+}
+.claude-btn-ghost:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Message styles */
+.claude-message {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.claude-msg-user {
+  padding: 8px 0;
+}
+
+.claude-msg-user .flex-1 {
+  background: linear-gradient(135deg, rgba(217,119,87,0.08) 0%, rgba(217,119,87,0.04) 100%);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(217,119,87,0.1);
+}
+
+.claude-msg-assistant {
+  padding: 8px 0;
+}
+
+.claude-msg-assistant .flex-1 {
+  background: rgba(255,255,255,0.6);
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Input area */
+.claude-input-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.claude-input-container:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 16px rgba(217, 119, 87, 0.12);
+  transform: translateY(-1px);
+}
+
+.claude-textarea {
+  width: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 14px 16px 4px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: transparent;
+}
+.claude-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+.claude-textarea:disabled {
+  opacity: 0.5;
+}
+
+/* Action buttons */
+.claude-action-btn {
+  color: var(--text-tertiary);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+.claude-action-btn:hover {
+  color: var(--accent-primary);
+  background: rgba(217, 119, 87, 0.08);
+  transform: scale(1.05);
+}
+.claude-action-btn:active {
+  transform: scale(0.98);
+}
+
+/* Prompt suggestion cards */
+.claude-prompt-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+.claude-prompt-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 8px 24px rgba(217, 119, 87, 0.15);
+  transform: translateY(-3px);
+  background: linear-gradient(135deg, rgba(217,119,87,0.02) 0%, rgba(217,119,87,0.01) 100%);
+}
+
+/* Thinking dots */
+.claude-thinking-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  display: inline-block;
+  animation: claude-pulse 1.4s infinite ease-in-out;
+}
+.claude-thinking-dots span:nth-child(1) { animation-delay: 0s; }
+.claude-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.claude-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes claude-pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* Avatar styling */
+.claude-chat .w-7.h-7.rounded-full {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.claude-msg-assistant .w-7.h-7.rounded-full {
+  background: linear-gradient(135deg, #d97757 0%, #c4694d 100%) !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.2);
+}
+
+/* Streaming text animation */
+.chat-content.streaming {
+  position: relative;
+}
+
+.chat-content.streaming::after {
+  content: '▌';
+  animation: blink 0.8s infinite;
+  color: var(--accent-primary);
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 49%, 100% { opacity: 1; }
+  50%, 99% { opacity: 0.2; }
 }
 
 /* === Chat Formatting === */
 .chat-content .verdict-box {
-  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.06));
-  border-left: 3px solid #3b82f6;
+  background: linear-gradient(135deg, rgba(217,119,87,0.08), rgba(217,119,87,0.04));
+  border-left: 3px solid #d97757;
   padding: 10px 14px;
   border-radius: 0 10px 10px 0;
   margin: 6px 0;
@@ -29,8 +191,8 @@
   font-family: ui-monospace, monospace;
   font-weight: 700;
   font-size: 15px;
-  color: #2563eb;
-  background: rgba(59,130,246,0.1);
+  color: #b45a3c;
+  background: rgba(217,119,87,0.12);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -38,8 +200,8 @@
 .chat-content .hs-code {
   font-family: ui-monospace, monospace;
   font-weight: 600;
-  color: #3b82f6;
-  background: rgba(59,130,246,0.08);
+  color: #c4694d;
+  background: rgba(217,119,87,0.08);
   padding: 1px 4px;
   border-radius: 3px;
 }
@@ -104,13 +266,13 @@
   margin: 2px 0;
   border-radius: 8px;
   cursor: pointer;
-  color: #3b82f6;
+  color: #c4694d;
   font-size: 13px;
   transition: background 0.15s;
 }
 
 .chat-content .followup-item:hover {
-  background: rgba(59,130,246,0.08);
+  background: rgba(217,119,87,0.08);
 }
 
 .chat-content .expert-list {
@@ -168,7 +330,7 @@
 .chat-content.streaming::after {
   content: '▊';
   animation: blink 0.7s infinite;
-  color: #3b82f6;
+  color: #d97757;
   font-weight: 300;
 }
 
@@ -184,4 +346,16 @@
 
 .animate-fadeIn {
   animation: fadeIn 0.3s ease;
+}
+
+/* Hide navbar/footer when inside chat */
+body:has(.chat-layout) nav,
+body:has(.chat-layout) footer {
+  display: none;
+}
+body:has(.chat-layout) main {
+  min-height: 100vh;
+}
+.claude-chat {
+  height: 100vh;
 }
