@@ -29,18 +29,11 @@ const ACCEPTED_TYPES: Record<string, string> = {
 }
 const FILE_ICONS: Record<string, string> = { image: '🖼️', pdf: '📄', audio: '🎤' }
 
-const STATS = [
-  { value: 11871, label: 'mã HS\nbiểu thuế 2026' },
-  { value: 4390, label: 'TB-TCHQ\ntiền lệ phân loại' },
-  { value: 7365, label: 'mã KTCN\n9 bộ ngành' },
-  { value: 9, label: 'tầng dữ liệu\nmỗi mã HS' },
-]
-
-const HOT_QUERIES = [
-  { hs: '8517.62.59', name: 'Thiết bị thu phát vô tuyến', query: 'thiết bị thu phát vô tuyến' },
-  { hs: '3926.90.99', name: 'Sản phẩm bằng nhựa khác', query: 'sản phẩm bằng nhựa' },
-  { hs: '8481.80.99', name: 'Van và thiết bị tương tự', query: 'van điện từ khí nén' },
-  { hs: '8516.71.00', name: 'Máy pha cà phê điện', query: 'máy pha cà phê điện' },
+const SUGGESTED_PROMPTS = [
+  { icon: '📦', title: 'Tra mã HS', desc: 'Thiết bị thu phát vô tuyến', query: 'Tra mã HS: thiết bị thu phát vô tuyến' },
+  { icon: '💰', title: 'Thuế nhập khẩu', desc: 'Máy pha cà phê điện', query: 'Thuế nhập khẩu máy pha cà phê điện từ Trung Quốc?' },
+  { icon: '📋', title: 'So sánh mã HS', desc: 'Sản phẩm nhựa', query: 'So sánh mã HS cho sản phẩm bằng nhựa: 3926.90.99 vs 3926.30.90' },
+  { icon: '🔍', title: 'Quy định KTCN', desc: 'Van điện từ khí nén', query: 'Van điện từ khí nén cần kiểm tra chuyên ngành gì?' },
 ]
 
 // --- Helpers ---
@@ -84,7 +77,6 @@ function formatMessage(text: string): string {
   for (const line of lines) {
     let l = line
 
-    // Verdict line: 🎯
     if (/^🎯/.test(l)) {
       closeList(); sectionContext = ''
       l = l.replace(/\*\*([\d.]+)\*\*/g, '<span class="hs-code-primary">$1</span>')
@@ -93,7 +85,6 @@ function formatMessage(text: string): string {
       continue
     }
 
-    // Tax line
     if (/^Thu[eế]:/i.test(l) || /MFN.*ACFTA.*VAT/i.test(l) || /Thuế NK/i.test(l)) {
       closeList()
       l = l.replace(/(\d+(?:\.\d+)?%)/g, '<span class="tax-rate">$1</span>')
@@ -102,35 +93,30 @@ function formatMessage(text: string): string {
       continue
     }
 
-    // Citation: 📌
     if (/^📌/.test(l)) {
       closeList(); sectionContext = 'citation'
       processed.push(`<div class="citation">${formatInline(l)}</div>`)
       continue
     }
 
-    // Alert: ⚡ / ⚠️
     if (/^[⚡⚠️]/.test(l) && /[Ll]ưu ý|quan trọng|thay đổi/i.test(l)) {
       closeList(); sectionContext = ''
       processed.push(`<div class="discovery-alert">${formatInline(l)}</div>`)
       continue
     }
 
-    // Follow-up header: 💡
     if (/^💡/.test(l)) {
       closeList(); sectionContext = 'followup'
       processed.push(`<div class="section-header">${formatInline(l)}</div>`)
       continue
     }
 
-    // Section headers with emoji
     if (/^[🔍❓📊📋📦💰📝📜🏭📖🔬✅❌⛔]/.test(l) && l.length > 5) {
       closeList(); sectionContext = ''
       processed.push(`<div class="section-header">${formatInline(l)}</div>`)
       continue
     }
 
-    // Numbered HS options: 1. **XXXX.XX.XX**
     if (/^\d+\.\s+\*\*\d{4}/.test(l)) {
       closeList()
       l = l.replace(/\*\*([\d.]+)\*\*/g, '<span class="hs-code">$1</span>')
@@ -138,7 +124,6 @@ function formatMessage(text: string): string {
       continue
     }
 
-    // Follow-up arrows: → "text"
     if (/^\s*[→►*]\s/.test(l)) {
       if (sectionContext === 'followup' || /[""]/.test(l)) {
         if (!inList || listType !== 'followup') {
@@ -152,7 +137,6 @@ function formatMessage(text: string): string {
       }
     }
 
-    // Bullet lists
     if (/^\s*[-*]\s+/.test(l)) {
       const content = l.replace(/^\s*[-*]\s+/, '')
       if (sectionContext === 'followup') {
@@ -170,10 +154,9 @@ function formatMessage(text: string): string {
       continue
     }
 
-    // Table rows
     if (/^\|/.test(l.trim())) {
       closeList()
-      if (/^[\|\s\-:]+$/.test(l.trim())) continue // separator row
+      if (/^[\|\s\-:]+$/.test(l.trim())) continue
       const cells = l.split('|').filter(c => c.trim())
       const isHeader = processed.length > 0 && !processed[processed.length - 1].includes('<td')
       const tag = isHeader && cells.length > 1 ? 'th' : 'td'
@@ -208,49 +191,26 @@ function formatInline(line: string): string {
 }
 
 // --- Components ---
-function AnimatedCounter({ end, duration = 1500 }: { end: number; duration?: number }) {
-  const [count, setCount] = useState(0)
-  const started = useRef(false)
-
-  useEffect(() => {
-    if (started.current) return
-    started.current = true
-    const startTime = performance.now()
-    function tick(now: number) {
-      const progress = Math.min((now - startTime) / duration, 1)
-      const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress)
-      setCount(Math.floor(eased * end))
-      if (progress < 1) requestAnimationFrame(tick)
-    }
-    requestAnimationFrame(tick)
-  }, [end, duration])
-
-  return <span className="stat-number">{count.toLocaleString('vi-VN')}</span>
-}
-
 function DebugPanel({ debug }: { debug: Record<string, unknown> }) {
   const [open, setOpen] = useState(false)
   const d = debug as { routing?: { intent: string; confidence: number; method: string }; duration?: string; apiCalls?: Array<{ step: string; status: string; params?: string; [k: string]: unknown }>; hasData?: boolean; [k: string]: unknown }
 
   return (
-    <div className="mt-2">
-      <button onClick={() => setOpen(!open)} className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-1">
-        <span>{open ? '▼' : '▶'}</span>
-        <span>API Debug</span>
-        {d.routing && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded text-[10px]">{d.routing.intent}</span>}
-        {d.duration && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">{d.duration}</span>}
-        <span className={`px-1.5 py-0.5 rounded text-[10px] ${d.hasData ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
-          {d.hasData ? '✅ data' : '❌ no data'}
-        </span>
+    <div className="mt-3">
+      <button onClick={() => setOpen(!open)} className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] flex items-center gap-1.5 transition-colors">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${open ? 'rotate-90' : ''}`}><polyline points="9 18 15 12 9 6"/></svg>
+        <span>Debug</span>
+        {d.routing && <span className="px-1.5 py-0.5 bg-[var(--bg-tertiary)] rounded text-[10px]">{d.routing.intent}</span>}
+        {d.duration && <span className="px-1.5 py-0.5 bg-[var(--bg-tertiary)] rounded text-[10px]">{d.duration}</span>}
       </button>
       {open && (
-        <div className="mt-1 p-2 bg-gray-900 text-gray-300 rounded-lg text-[11px] font-mono max-h-60 overflow-auto">
+        <div className="mt-2 p-3 bg-[#1a1a1a] text-gray-300 rounded-xl text-[11px] font-mono max-h-60 overflow-auto">
           {d.routing && (
             <div className="mb-1"><span className="text-gray-500">Agent:</span> <span className="text-blue-400">{d.routing.intent}</span> <span className="text-gray-600">({d.routing.method}, {(d.routing.confidence * 100).toFixed(0)}%)</span></div>
           )}
           {d.apiCalls?.map((call, i) => (
             <div key={i} className={call.status === 'error' ? 'text-red-400' : 'text-gray-400'}>
-              {call.status === 'done' ? '✅' : call.status === 'error' ? '❌' : '⏳'}{' '}
+              {call.status === 'done' ? '✓' : call.status === 'error' ? '✗' : '…'}{' '}
               <span className="text-gray-200">{call.step}</span>
               {call.params && <span className="text-blue-400"> &quot;{call.params}&quot;</span>}
               {(call as Record<string, unknown>).count !== undefined && <span> → {String((call as Record<string, unknown>).count)} results</span>}
@@ -267,19 +227,38 @@ function FilePreview({ file, onRemove }: { file: { name: string; mimeType: strin
   const type = ACCEPTED_TYPES[file.mimeType] || 'doc'
   const icon = FILE_ICONS[type] || '📎'
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
+    <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl text-sm">
       {type === 'image' && file.preview ? (
-        <img src={file.preview} alt="" className="w-9 h-9 rounded object-cover" />
+        <img src={file.preview} alt="" className="w-8 h-8 rounded-lg object-cover" />
       ) : (
-        <span className="text-xl">{icon}</span>
+        <span className="text-lg">{icon}</span>
       )}
-      <div className="flex-1 min-w-0">
-        <div className="truncate font-medium text-gray-700 text-xs">{file.name}</div>
-        <div className="text-[10px] text-gray-400">{file.sizeLabel}</div>
+      <div className="min-w-0">
+        <div className="truncate font-medium text-[var(--text-primary)] text-xs">{file.name}</div>
+        <div className="text-[10px] text-[var(--text-tertiary)]">{file.sizeLabel}</div>
       </div>
       {onRemove && (
-        <button onClick={onRemove} className="text-gray-400 hover:text-red-500 text-lg leading-none">×</button>
+        <button onClick={onRemove} className="ml-1 text-[var(--text-tertiary)] hover:text-red-500 text-lg leading-none transition-colors">×</button>
       )}
+    </div>
+  )
+}
+
+// --- Claude-style Avatar ---
+function ClaudeAvatar() {
+  return (
+    <div className="w-7 h-7 rounded-full bg-[#d97757] flex items-center justify-center shrink-0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="white" opacity="0.9"/>
+      </svg>
+    </div>
+  )
+}
+
+function UserAvatar() {
+  return (
+    <div className="w-7 h-7 rounded-full bg-[var(--accent-primary)] flex items-center justify-center shrink-0">
+      <span className="text-white text-xs font-semibold">U</span>
     </div>
   )
 }
@@ -299,10 +278,22 @@ export default function ChatPage() {
   useEffect(() => { sessionId.current = getSessionId() }, [])
   useEffect(() => { return () => { if (attachedFile?.preview) URL.revokeObjectURL(attachedFile.preview) } }, [attachedFile])
 
+  const prevMessagesLenRef = useRef(0)
+
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Use requestAnimationFrame to batch scroll with next paint
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    })
   }, [])
-  useEffect(() => { scrollToBottom() }, [messages, loading, streamingIdx, scrollToBottom])
+
+  useEffect(() => {
+    // Only scroll when new messages are added, not on loading state changes
+    if (messages.length > prevMessagesLenRef.current) {
+      scrollToBottom()
+      prevMessagesLenRef.current = messages.length
+    }
+  }, [messages, scrollToBottom])
 
   function handleNewChat() {
     setMessages([]); setInput(''); setAttachedFile(null); setStreamingIdx(-1)
@@ -399,31 +390,29 @@ export default function ChatPage() {
   const canSubmit = !loading && (input.trim() || attachedFile)
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] max-w-4xl mx-auto bg-white">
-      {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 border-b bg-white shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    <div className="claude-chat flex flex-col h-screen">
+      {/* Sidebar-like header strip */}
+      <div className="claude-chat-header flex items-center justify-between px-5 py-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <ClaudeAvatar />
+          <div>
+            <h1 className="text-[15px] font-semibold text-[var(--text-primary)]">WA26 Chatbot</h1>
+            <p className="text-[11px] text-[var(--text-tertiary)]">HS Code & Thuế XNK</p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <h1 className="text-[15px] font-bold text-gray-800 tracking-tight">WA26 Chatbot</h1>
-          <p className="text-[11px] text-gray-400 truncate">Gemini 2.0 Flash + HS Knowledge API</p>
-        </div>
-        <div className="ml-auto flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2">
           {messages.length > 0 && (
-            <button onClick={handleNewChat} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-500 border rounded-lg hover:bg-gray-50 transition">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
-              Mới
+            <button onClick={handleNewChat} className="claude-btn-ghost flex items-center gap-1.5 px-3 py-1.5 text-xs">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+              Cuộc trò chuyện mới
             </button>
           )}
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50" />
-          <span className="text-[11px] text-gray-400">Online</span>
         </div>
-      </header>
+      </div>
 
-      {/* Messages */}
+      {/* Messages area */}
       <div
-        className="flex-1 overflow-y-auto px-3 py-4"
+        className="flex-1 overflow-y-auto"
         onClick={(e) => {
           const item = (e.target as HTMLElement).closest('.followup-item')
           if (item && !loading) {
@@ -433,132 +422,149 @@ export default function ChatPage() {
           }
         }}
       >
-        {/* Empty State */}
+        {/* Empty State — Claude style */}
         {messages.length === 0 && (
-          <div className="flex flex-col items-center text-center py-6 animate-fadeIn">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-            </div>
-            <h2 className="text-xl font-extrabold text-gray-800 mb-1">WA26 — HS Code Chatbot</h2>
-            <p className="text-sm text-gray-400 max-w-sm mb-5">Hệ thống phân loại mã HS thông minh — dựa trên AI + cơ sở dữ liệu biểu thuế 2026</p>
-
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-3 mb-6 w-full max-w-md">
-              {STATS.map((s, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl p-3 text-center">
-                  <div className="text-lg font-bold text-blue-600"><AnimatedCounter end={s.value} duration={1500 + i * 200} /></div>
-                  <div className="text-[10px] text-gray-400 whitespace-pre-line leading-tight mt-1">{s.label}</div>
+          <div className="flex flex-col items-center justify-center h-full px-4 animate-fadeIn">
+            <div className="max-w-2xl w-full text-center">
+              <div className="mb-8">
+                <div className="w-12 h-12 rounded-full bg-[#d97757] flex items-center justify-center mx-auto mb-5">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="white" opacity="0.9"/>
+                  </svg>
                 </div>
-              ))}
-            </div>
+                <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">Xin chào! Tôi có thể giúp gì?</h2>
+                <p className="text-[var(--text-secondary)] text-[15px]">Tra cứu mã HS, thuế suất, quy định hải quan Việt Nam — 11,871 mã HS & biểu thuế 2026</p>
+              </div>
 
-            {/* Feature pills */}
-            <div className="flex gap-1.5 flex-wrap justify-center mb-5">
-              {['Gemini 2.0 Flash', 'HS Knowledge API', '9 tầng dữ liệu', 'TB-TCHQ'].map((f, i) => (
-                <span key={i} className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-500 text-[11px] font-semibold">{f}</span>
-              ))}
-            </div>
-
-            {/* Hot queries */}
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Top tra cứu nhiều nhất</div>
-            <div className="flex flex-col gap-2 w-full max-w-md">
-              {HOT_QUERIES.map((item, i) => (
-                <button key={i} onClick={() => sendMessage(`Tra mã HS: ${item.query}`)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-white hover:border-blue-300 hover:shadow-md hover:shadow-blue-500/10 transition text-left w-full group">
-                  <span className="text-[11px] font-bold font-mono bg-blue-50 text-blue-500 px-2 py-1 rounded shrink-0">{item.hs}</span>
-                  <span className="text-sm text-gray-600 group-hover:text-gray-800">{item.name}</span>
-                  <span className="ml-auto text-gray-300 group-hover:text-blue-400 shrink-0">›</span>
-                </button>
-              ))}
+              <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
+                {SUGGESTED_PROMPTS.map((item, i) => (
+                  <button key={i} onClick={() => sendMessage(item.query)}
+                    className="claude-prompt-card text-left p-4 rounded-2xl transition-all group">
+                    <div className="text-lg mb-2">{item.icon}</div>
+                    <div className="text-[13px] font-medium text-[var(--text-primary)] mb-0.5">{item.title}</div>
+                    <div className="text-[12px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] transition-colors">{item.desc}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Message bubbles */}
-        {messages.map((msg, i) => (
-          <div key={i} className={`mb-4 animate-fadeIn ${msg.role === 'user' ? 'flex flex-col items-end' : ''}`}>
-            {/* File preview in user message */}
-            {msg.file && <div className="mb-1.5"><FilePreview file={msg.file} /></div>}
-
-            {msg.role === 'user' ? (
-              <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-3 rounded-2xl rounded-br-md max-w-[85%] text-[15px] leading-relaxed shadow-lg shadow-blue-500/25 whitespace-pre-wrap">
-                {msg.content}
-              </div>
-            ) : (
-              <div className="flex gap-3 items-start">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20 mt-0.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                </div>
-                <div className="bg-white border rounded-2xl rounded-bl-md px-4 py-3 max-w-[calc(100%-44px)] shadow-sm overflow-x-auto">
-                  {i === streamingIdx ? (
-                    <StreamingText content={msg.content} onComplete={() => setStreamingIdx(-1)} scrollRef={messagesEndRef} />
-                  ) : (
-                    <div className="chat-content text-[14px] leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
-                  )}
-
-                  {/* Actions */}
-                  {i !== streamingIdx && (
-                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">
-                      <button onClick={() => navigator.clipboard.writeText(msg.content)} className="p-1 text-gray-300 hover:text-blue-500 transition" title="Copy">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      </button>
-                      <button onClick={() => handleRetry(i)} className="p-1 text-gray-300 hover:text-amber-500 transition" title="Thử lại">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                      </button>
-                      <button onClick={() => sendFeedback(i, 'up')} className="p-1 text-gray-300 hover:text-green-500 transition text-xs" title="Tốt">👍</button>
-                      <button onClick={() => sendFeedback(i, 'down')} className="p-1 text-gray-300 hover:text-red-500 transition text-xs" title="Chưa tốt">👎</button>
+        {/* Messages */}
+        {messages.length > 0 && (
+          <div className="max-w-3xl mx-auto px-4 py-6">
+            {messages.map((msg, i) => (
+              <div key={i} className="claude-message animate-fadeIn mb-2">
+                {msg.role === 'user' ? (
+                  <div className="claude-msg-user py-4">
+                    <div className="flex gap-3">
+                      <UserAvatar />
+                      <div className="flex-1 min-w-0 pt-0.5">
+                        <div className="text-[11px] font-medium text-[var(--text-tertiary)] mb-1">Bạn</div>
+                        {msg.file && <div className="mb-2"><FilePreview file={msg.file} /></div>}
+                        <div className="text-[15px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="claude-msg-assistant py-4">
+                    <div className="flex gap-3">
+                      <ClaudeAvatar />
+                      <div className="flex-1 min-w-0 pt-0.5">
+                        <div className="text-[11px] font-medium text-[var(--text-tertiary)] mb-1">WA26</div>
+                        {i === streamingIdx ? (
+                          <StreamingText content={msg.content} onComplete={() => setStreamingIdx(-1)} scrollRef={messagesEndRef} />
+                        ) : (
+                          <div className="chat-content text-[15px] leading-[1.7] text-[var(--text-primary)]" dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
+                        )}
 
-                  {/* Debug */}
-                  {i !== streamingIdx && msg.debug && <DebugPanel debug={msg.debug} />}
+                        {i !== streamingIdx && (
+                          <div className="flex items-center gap-1 mt-3">
+                            <button onClick={() => navigator.clipboard.writeText(msg.content)} className="claude-action-btn p-1.5 rounded-lg" title="Sao chép">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            </button>
+                            <button onClick={() => handleRetry(i)} className="claude-action-btn p-1.5 rounded-lg" title="Thử lại">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            </button>
+                            <button onClick={() => sendFeedback(i, 'up')} className="claude-action-btn p-1.5 rounded-lg" title="Tốt">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                            </button>
+                            <button onClick={() => sendFeedback(i, 'down')} className="claude-action-btn p-1.5 rounded-lg" title="Chưa tốt">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                            </button>
+                          </div>
+                        )}
+
+                        {i !== streamingIdx && msg.debug && <DebugPanel debug={msg.debug} />}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Thinking indicator */}
+            {loading && (
+              <div className="claude-message animate-fadeIn mb-2">
+                <div className="claude-msg-assistant py-4">
+                  <div className="flex gap-3">
+                    <ClaudeAvatar />
+                    <div className="flex-1 pt-0.5">
+                      <div className="text-[11px] font-medium text-[var(--text-tertiary)] mb-1">WA26</div>
+                      <div className="flex items-center gap-2 text-[var(--text-tertiary)] text-sm">
+                        <div className="claude-thinking-dots flex gap-1">
+                          <span /><span /><span />
+                        </div>
+                        <span className="text-[13px]">Đang suy nghĩ...</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        ))}
 
-        {/* Typing indicator */}
-        {loading && (
-          <div className="flex gap-3 items-start mb-4 animate-fadeIn">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shrink-0 shadow-md">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-            </div>
-            <div className="bg-white border rounded-2xl rounded-bl-md px-5 py-3 shadow-sm flex gap-1.5 items-center">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
+            <div ref={messagesEndRef} />
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="border-t bg-white shrink-0">
-        {attachedFile && (
-          <div className="px-3 pt-2"><FilePreview file={attachedFile} onRemove={removeFile} /></div>
-        )}
-        <form onSubmit={(e) => { e.preventDefault(); sendMessage() }} className="px-3 py-3 flex gap-2 items-center">
-          <input ref={fileInputRef} type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.mp3,.wav,.ogg,.m4a" onChange={handleFileSelect} className="hidden" />
-          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}
-            className={`p-2.5 border rounded-xl transition shrink-0 ${attachedFile ? 'border-blue-300 text-blue-500' : 'border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500'} disabled:opacity-40`}
-            title="Đính kèm file">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-          </button>
-          <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-            onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px' }}
-            placeholder="Mô tả hàng hóa cần tra mã HS..."
-            rows={1} disabled={loading}
-            className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-          />
-          <button type="submit" disabled={!canSubmit}
-            className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shrink-0 shadow-md shadow-blue-500/25">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </form>
+      {/* Input area — Claude style centered */}
+      <div className="shrink-0 pb-4 px-4">
+        <div className="max-w-3xl mx-auto">
+          {attachedFile && (
+            <div className="mb-2"><FilePreview file={attachedFile} onRemove={removeFile} /></div>
+          )}
+          <div className="claude-input-container">
+            <input ref={fileInputRef} type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.mp3,.wav,.ogg,.m4a" onChange={handleFileSelect} className="hidden" />
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+              onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 200) + 'px' }}
+              placeholder="Nhắn tin cho WA26..."
+              rows={1}
+              disabled={loading}
+              className="claude-textarea"
+            />
+            <div className="flex items-center gap-1 px-2 pb-2">
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}
+                className="claude-action-btn p-2 rounded-lg" title="Đính kèm file">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={() => sendMessage()}
+                disabled={!canSubmit}
+                className={`p-2 rounded-xl transition-all ${canSubmit ? 'bg-[var(--accent-primary)] text-white hover:opacity-90' : 'text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]'}`}
+                title="Gửi"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+          <p className="text-[11px] text-[var(--text-tertiary)] text-center mt-2">WA26 sử dụng Gemini 2.0 Flash + HS Knowledge API. Kết quả mang tính tham khảo.</p>
+        </div>
       </div>
     </div>
   )
@@ -590,7 +596,7 @@ function StreamingText({ content, onComplete, scrollRef }: { content: string; on
   }, [content, onComplete, scrollRef])
 
   return (
-    <div className={`chat-content text-[14px] leading-relaxed text-gray-800 ${!done ? 'streaming' : ''}`}
+    <div className={`chat-content text-[15px] leading-[1.7] text-[var(--text-primary)] ${!done ? 'streaming' : ''}`}
       dangerouslySetInnerHTML={{ __html: formatMessage(displayed) }} />
   )
 }
