@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-04-19T12:19:57.741Z",
+  "results": [
+    {
+      "id": 1,
+      "name": "Máy bơm nước dân dụng",
+      "duration": 22316,
+      "score": 5,
+      "hsFound": "8413.70.99",
+      "hasVAT": true,
+      "hasMFN": true,
+      "hasFTA": true,
+      "hasWarning": false,
+      "replyLength": 1814
+    },
+    {
+      "id": 2,
+      "name": "Vải cotton 100%",
+      "duration": 21148,
+      "score": 5,
+      "hsFound": "5208.11.00",
+      "hasVAT": true,
+      "hasMFN": true,
+      "hasFTA": true,
+      "hasWarning": false,
+      "replyLength": 2018
+    },
+    {
+      "id": 3,
+      "name": "USB Hub 4 cổng USB 3.0",
+      "duration": 22567,
+      "score": 5,
+      "hsFound": "8517.62.59",
+      "hasVAT": true,
+      "hasMFN": true,
+      "hasFTA": true,
+      "hasWarning": false,
+      "replyLength": 4208
+    },
+    {
+      "id": 4,
+      "name": "Cà phê nhân chưa rang",
+      "duration": 20683,
+      "score": 5,
+      "hsFound": "0901.11.00",
+      "hasVAT": true,
+      "hasMFN": true,
+      "hasFTA": true,
+      "hasWarning": false,
+      "replyLength": 2749
+    },
+    {
+      "id": 5,
+      "name": "Axit clohidric HCl 37%",
+      "duration": 25089,
+      "score": 5,
+      "hsFound": "2806.10.00",
+      "hasVAT": true,
+      "hasMFN": true,
+      "hasFTA": true,
+      "hasWarning": true,
+      "replyLength": 3585
+    }
+  ]
+}
